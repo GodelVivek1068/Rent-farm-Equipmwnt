@@ -1,0 +1,9 @@
+Flask==3.0.0
+flask-cors==4.0.0
+Flask-PyMongo==2.3.0
+pymongo==4.6.1
+PyJWT==2.8.0
+werkzeug==3.0.1
+python-dotenv==1.0.0
+razorpay==1.4.2
+gunicorn==22.0.0

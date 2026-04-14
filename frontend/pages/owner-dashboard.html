@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Owner Dashboard - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .dashboard-header {
+      background: radial-gradient(circle at 15% 20%, #3b8f5f 0%, var(--green-dark) 52%, #153424 100%);
+      color: var(--white); padding: 40px 24px 30px;
+    }
+    .dashboard-header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+    .dashboard-header p { color: rgba(255,255,255,0.78); }
+
+    .dashboard-wrap { max-width: 1180px; margin: 28px auto; padding: 0 24px; }
+
+    .stats-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0,1fr)); margin-bottom: 24px; }
+    .stat-card {
+      background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); padding: 16px;
+    }
+    .stat-label { color: var(--gray-600); font-size: 0.82rem; }
+    .stat-value { font-size: 1.45rem; font-weight: 800; color: var(--green-dark); margin-top: 4px; }
+
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .dashboard-grid.single-col { grid-template-columns: 1fr; }
+    .panel {
+      background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); padding: 18px;
+    }
+    .panel h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--green-dark); margin-bottom: 14px; }
+
+    .owner-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .summary-chip {
+      background: linear-gradient(180deg, var(--green-pale), #f7fffb);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+    }
+
+    .summary-label { color: var(--gray-600); font-size: 0.78rem; margin-bottom: 4px; }
+    .summary-value { color: var(--green-dark); font-size: 1.1rem; font-weight: 800; }
+
+    .equipment-list, .booking-list { display: grid; gap: 10px; }
+    .item-card {
+      border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px;
+      display: grid; gap: 8px;
+    }
+    .item-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .item-name { font-weight: 700; color: var(--green-dark); }
+    .item-meta { color: var(--gray-600); font-size: 0.84rem; display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-mini {
+      border: none; border-radius: 999px; padding: 6px 12px; cursor: pointer;
+      font-size: 0.78rem; font-weight: 700;
+    }
+    .btn-mini.edit { background: #e0f2fe; color: #0369a1; }
+    .btn-mini.delete { background: #fee2e2; color: #b91c1c; }
+    .btn-mini.ok { background: #dcfce7; color: #166534; }
+    .btn-mini.no { background: #fef3c7; color: #92400e; }
+
+    .empty { color: var(--gray-400); text-align: center; padding: 18px; }
+
+    .form-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .full { grid-column: 1 / -1; }
+
+    .thumb { width: 68px; height: 68px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--gray-200); background: var(--green-pale); }
+
+    @media(max-width:980px) {
+      .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+    @media(max-width:640px) {
+      .owner-summary { grid-template-columns: 1fr; }
+      .form-inline { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="equipment.html">Equipment</a></li>
+      <li><a href="owner-dashboard.html" class="active">Owner Dashboard</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="dashboard-header">
+    <h1>Owner Dashboard</h1>
+    <p>Add equipment, manage listings, process bookings, and track earnings.</p>
+  </div>
+
+  <div class="dashboard-wrap">
+    <div id="alertBox"></div>
+    <div id="ownerInfo" class="alert alert-info" style="margin-bottom:14px;"></div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-label">Total Listings</div><div class="stat-value">-</div></div>
+      <div class="stat-card"><div class="stat-label">Pending Bookings</div><div class="stat-value">-</div></div>
+      <div class="stat-card"><div class="stat-label">Active Bookings</div><div class="stat-value">-</div></div>
+      <div class="stat-card"><div class="stat-label">Total Earnings</div><div class="stat-value">-</div></div>
+    </div>
+
+    <div class="dashboard-grid">
+      <section class="panel">
+        <h3><i class="fa-solid fa-coins"></i> Earnings + Booking Requests</h3>
+        <div class="owner-summary" id="bookingSummaryStrip"></div>
+        <div class="booking-list" id="bookingList"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>
+      </section>
+
+      <section class="panel" style="grid-column: 1 / -1;">
+        <h3><i class="fa-solid fa-list-check"></i> Manage Listings</h3>
+        <div class="equipment-list" id="equipmentList"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="../js/main.js"></script>
+  <script>
+    const safeText = (value) => String(value || '').replace(/[&<>"']/g, (m) => {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      if (m === '"') return '&quot;';
+      return '&#39;';
+    });
+    let ownerEquipment = [];
+    let ownerBookings = [];
+    let bookingRefreshTimer = null;
+
+    function normalizeStatus(value) {
+      const raw = String(value || '').trim().toLowerCase();
+      if (raw === 'confirmed' || raw === 'cancelled' || raw === 'completed') return raw;
+      return 'pending';
+    }
+
+    function requireOwner() {
+      const user = getUser();
+      if (!isLoggedIn()) {
+        window.location.href = 'login.html?redirect=owner-dashboard.html';
+        return false;
+      }
+      if (!user || user.role !== 'owner') {
+        showAlert('alertBox', 'Owner account required for dashboard access.', 'error');
+        setTimeout(() => { window.location.href = 'login.html?redirect=owner-dashboard.html'; }, 1200);
+        return false;
+      }
+      return true;
+    }
+
+    async function initOwnerDashboard() {
+      if (!requireOwner()) return;
+      const owner = getUser() || {};
+      document.getElementById('ownerInfo').innerHTML = `Logged in as owner: <strong>${safeText(owner.name || 'Unknown')}</strong> (${safeText(owner.email || 'no-email')}). Booking requests are shown only for equipment owned by this account.`;
+      await Promise.all([loadEquipment(), loadBookings()]);
+      renderStats();
+      if (!bookingRefreshTimer) {
+        bookingRefreshTimer = setInterval(loadBookings, 12000);
+      }
+    }
+
+    async function loadEquipment() {
+      try {
+        const res = await apiCall('GET', '/equipment/my', null, true);
+        ownerEquipment = res.equipment || [];
+      } catch (e) {
+        ownerEquipment = [];
+        showAlert('alertBox', e.message || 'Failed to load your listings', 'error');
+      }
+      renderEquipment();
+    }
+
+    async function loadBookings() {
+      try {
+        const res = await apiCall('GET', '/rentals/owner', null, true);
+        ownerBookings = (res.rentals || []).map((b) => ({
+          ...b,
+          status: normalizeStatus(b.status)
+        }));
+      } catch (e) {
+        ownerBookings = [];
+        showAlert('alertBox', e.message || 'Failed to load owner bookings', 'error');
+      }
+      renderBookings();
+    }
+
+    function renderStats() {
+      const pending = ownerBookings.filter((b) => normalizeStatus(b.status) === 'pending').length;
+      const active = ownerBookings.filter((b) => normalizeStatus(b.status) === 'confirmed').length;
+      const earnings = ownerBookings
+        .filter((b) => {
+          const status = normalizeStatus(b.status);
+          return status === 'confirmed' || status === 'completed';
+        })
+        .reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Total Listings</div><div class="stat-value">${ownerEquipment.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Pending Bookings</div><div class="stat-value">${pending}</div></div>
+        <div class="stat-card"><div class="stat-label">Active Bookings</div><div class="stat-value">${active}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Earnings</div><div class="stat-value">Rs. ${earnings.toLocaleString('en-IN')}</div></div>
+      `;
+
+      const summaryStrip = document.getElementById('bookingSummaryStrip');
+      if (summaryStrip) {
+        summaryStrip.innerHTML = `
+          <div class="summary-chip">
+            <div class="summary-label">Booking Requests</div>
+            <div class="summary-value">${pending}</div>
+          </div>
+          <div class="summary-chip">
+            <div class="summary-label">Confirmed Earnings</div>
+            <div class="summary-value">Rs. ${earnings.toLocaleString('en-IN')}</div>
+          </div>
+          <div class="summary-chip">
+            <div class="summary-label">Active Bookings</div>
+            <div class="summary-value">${active}</div>
+          </div>
+        `;
+      }
+    }
+
+    function renderEquipment() {
+      const wrap = document.getElementById('equipmentList');
+      if (!ownerEquipment.length) {
+        wrap.innerHTML = '<div class="empty">No listings yet. Use Add Equipment to create your first listing.</div>';
+        renderStats();
+        return;
+      }
+
+      wrap.innerHTML = ownerEquipment.map((eq) => {
+        const statusBadge = eq.available !== false ? 'badge-green' : 'badge-red';
+        const statusLabel = eq.available !== false ? 'Available' : 'Unavailable';
+        const image = eq.image_url
+          ? `<img class="thumb" src="${safeText(eq.image_url)}" alt="${safeText(eq.name)}"/>`
+          : '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.7rem;">🚜</div>';
+
+        return `
+          <div class="item-card">
+            <div class="item-top">
+              <div style="display:flex; gap:10px; align-items:center;">
+                ${image}
+                <div>
+                  <div class="item-name">${safeText(eq.name)}</div>
+                  <div class="item-meta">
+                    <span><i class="fa-solid fa-location-dot"></i> ${safeText(eq.location)}</span>
+                    <span><i class="fa-solid fa-money-bill-wave"></i> Rs. ${Number(eq.price_per_day || 0).toLocaleString('en-IN')}/day</span>
+                    <span class="badge ${statusBadge}">${statusLabel}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn-mini edit" onclick="toggleAvailability('${eq._id}', ${eq.available !== false ? 'false' : 'true'})">${eq.available !== false ? 'Mark Unavailable' : 'Mark Available'}</button>
+              <button class="btn-mini edit" onclick="editPrice('${eq._id}', ${Number(eq.price_per_day || 0)})">Edit Price</button>
+              <button class="btn-mini edit" onclick="editLocation('${eq._id}', '${safeText(eq.location)}')">Edit Location</button>
+              <button class="btn-mini delete" onclick="deleteListing('${eq._id}')">Delete Listing</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      renderStats();
+    }
+
+    function renderBookings() {
+      const wrap = document.getElementById('bookingList');
+      if (!ownerBookings.length) {
+        wrap.innerHTML = '<div class="empty">No booking requests for this owner account yet. Try booking one of this owner\'s listings from renter account.</div>';
+        renderStats();
+        return;
+      }
+
+      const sorted = [...ownerBookings].sort((a, b) => {
+        const aPending = normalizeStatus(a.status) === 'pending' ? 0 : 1;
+        const bPending = normalizeStatus(b.status) === 'pending' ? 0 : 1;
+        return aPending - bPending;
+      });
+
+      wrap.innerHTML = sorted.map((b) => {
+        const status = normalizeStatus(b.status);
+        const statusClass = status === 'pending' ? 'badge-amber' : (status === 'confirmed' ? 'badge-green' : 'badge-red');
+        const statusText = status === 'pending' ? 'pending confirmation' : status;
+        return `
+          <div class="item-card">
+            <div class="item-top">
+              <div>
+                <div class="item-name">${safeText(b.equipment_name)}</div>
+                <div class="item-meta">
+                  <span><i class="fa-solid fa-user"></i> ${safeText(b.renter_name || 'Renter')}</span>
+                  <span><i class="fa-solid fa-calendar"></i> ${safeText(b.start_date)} to ${safeText(b.end_date)}</span>
+                  <span><i class="fa-solid fa-money-bill-wave"></i> Rs. ${Number(b.total_amount || 0).toLocaleString('en-IN')}</span>
+                  <span class="badge ${statusClass}">${safeText(statusText)}</span>
+                </div>
+              </div>
+            </div>
+            <div class="actions">
+              ${status === 'pending' ? `<button class="btn-mini ok" onclick="updateBookingStatus('${b._id}', 'confirmed')">Accept</button><button class="btn-mini no" onclick="updateBookingStatus('${b._id}', 'cancelled')">Reject</button>` : ''}
+              ${status === 'confirmed' ? `<button class="btn-mini edit" onclick="updateBookingStatus('${b._id}', 'completed')">Mark Completed</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+      renderStats();
+    }
+
+    async function toggleAvailability(id, available) {
+      try {
+        await apiCall('PUT', `/equipment/${id}`, { available }, true);
+        await loadEquipment();
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to update listing status.', 'error');
+      }
+    }
+
+    async function editPrice(id, currentPrice) {
+      const value = window.prompt('Enter new price per day', String(currentPrice || ''));
+      if (value === null) return;
+      const price = Number(value);
+      if (!price || price <= 0) {
+        showAlert('alertBox', 'Enter a valid price.', 'error');
+        return;
+      }
+      try {
+        await apiCall('PUT', `/equipment/${id}`, { price_per_day: price }, true);
+        await loadEquipment();
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to update price.', 'error');
+      }
+    }
+
+    async function editLocation(id, currentLocation) {
+      const value = window.prompt('Enter new location', currentLocation || '');
+      if (value === null) return;
+      const location = value.trim();
+      if (!location) {
+        showAlert('alertBox', 'Location cannot be empty.', 'error');
+        return;
+      }
+      try {
+        await apiCall('PUT', `/equipment/${id}`, { location }, true);
+        await loadEquipment();
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to update location.', 'error');
+      }
+    }
+
+    async function deleteListing(id) {
+      const ok = window.confirm('Delete this listing? This action cannot be undone.');
+      if (!ok) return;
+      try {
+        await apiCall('DELETE', `/equipment/${id}`, null, true);
+        showAlert('alertBox', 'Listing deleted.', 'success');
+        await loadEquipment();
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to delete listing.', 'error');
+      }
+    }
+
+    async function updateBookingStatus(id, status) {
+      try {
+        await apiCall('PUT', `/rentals/${id}/status`, { status }, true);
+        showAlert('alertBox', `Booking ${status}.`, 'success');
+        await loadBookings();
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to update booking.', 'error');
+      }
+    }
+
+    initOwnerDashboard();
+  </script>
+</body>
+</html>

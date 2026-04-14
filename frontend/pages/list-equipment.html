@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>List Your Equipment - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .page-header { background: linear-gradient(135deg, var(--green-dark), #2d6a4f); color: white; padding: 48px 24px 36px; text-align: center; }
+    .page-header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+    .page-header p { color: rgba(255,255,255,0.75); margin-top: 8px; }
+    .list-form { max-width: 720px; margin: 40px auto; padding: 0 24px; }
+    .form-card { background: var(--white); border-radius: var(--radius); padding: 32px; box-shadow: var(--shadow-md); border: 1px solid var(--gray-200); }
+    .form-card h3 { font-family: 'Playfair Display', serif; color: var(--green-dark); margin-bottom: 24px; font-size: 1.3rem; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .btn-submit { width: 100%; padding: 14px; font-size: 1rem; justify-content: center; border-radius: var(--radius-sm); margin-top: 8px; }
+    .preview-icon { font-size: 4rem; text-align: center; padding: 20px; background: var(--green-pale); border-radius: var(--radius-sm); margin-bottom: 16px; }
+    @media(max-width:600px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li><li><a href="equipment.html">Equipment</a></li>
+      <li><a href="my-rentals.html">My Rentals</a></li><li><a href="list-equipment.html" class="active">List Equipment</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="page-header">
+    <h1>List Your Equipment</h1>
+    <p>Earn money by renting out your idle farm equipment to local farmers</p>
+  </div>
+
+  <div class="list-form">
+    <div id="alertBox"></div>
+    <div class="form-card">
+      <h3><i class="fa-solid fa-plus-circle"></i> Equipment Details</h3>
+
+      <div id="catPreview" class="preview-icon">🚜</div>
+
+      <div class="form-group">
+        <label>Equipment Name *</label>
+        <input type="text" id="eqName" placeholder="e.g. Mahindra 575 DI Tractor"/>
+      </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>Category *</label>
+          <select id="eqCategory" onchange="updateIcon()">
+            <option value="tractor">🚜 Tractor</option>
+            <option value="harvester">🌾 Harvester</option>
+            <option value="rotavator">⚙️ Rotavator</option>
+            <option value="sprayer">💧 Sprayer</option>
+            <option value="thresher">🌿 Thresher</option>
+            <option value="plough">🔧 Plough</option>
+            <option value="seeder">🌱 Seeder</option>
+            <option value="pump">🪣 Water Pump</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Price Per Day (₹) *</label>
+          <input type="number" id="eqPrice" placeholder="e.g. 2500" min="100"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Location *</label>
+        <input type="text" id="eqLocation" placeholder="Village / City, District"/>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="eqDesc" placeholder="Describe your equipment: brand, model, condition, attachments available, HP, etc."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Image URL</label>
+        <input type="url" id="eqImage" placeholder="https://example.com/equipment.jpg"/>
+      </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>Brand / Make</label>
+          <input type="text" id="eqBrand" placeholder="e.g. Mahindra, John Deere"/>
+        </div>
+        <div class="form-group">
+          <label>Year of Manufacture</label>
+          <input type="number" id="eqYear" placeholder="e.g. 2019" min="1990" max="2024"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Contact Phone (visible to renters)</label>
+        <input type="tel" id="eqPhone" placeholder="9876543210"/>
+      </div>
+      <button class="btn-green btn-submit" onclick="listEquipment()">
+        <i class="fa-solid fa-upload"></i> List Equipment
+      </button>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-brand"><i class="fa-solid fa-tractor"></i> KrishiYantra</div>
+    <p>Empowering Indian Farmers</p>
+    <p class="footer-copy">© 2024 KrishiYantra</p>
+  </footer>
+
+  <script src="../js/main.js"></script>
+  <script>
+    const ICONS = { tractor:'🚜', harvester:'🌾', rotavator:'⚙️', sprayer:'💧', thresher:'🌿', plough:'🔧', seeder:'🌱', pump:'🪣' };
+
+    function updateIcon() {
+      const cat = document.getElementById('eqCategory').value;
+      document.getElementById('catPreview').textContent = ICONS[cat] || '🚜';
+    }
+
+    async function listEquipment() {
+      if (!isLoggedIn()) {
+        window.location.href = 'login.html?redirect=list-equipment.html'; return;
+      }
+      const user = getUser();
+      if (!user || user.role !== 'owner') {
+        showAlert('alertBox', 'Only owner accounts can list equipment. Please login as owner.', 'error');
+        setTimeout(() => {
+          window.location.href = 'login.html?redirect=list-equipment.html';
+        }, 1400);
+        return;
+      }
+      const name = document.getElementById('eqName').value.trim();
+      const category = document.getElementById('eqCategory').value;
+      const price_per_day = document.getElementById('eqPrice').value;
+      const location = document.getElementById('eqLocation').value.trim();
+      const description = document.getElementById('eqDesc').value.trim();
+      const image_url = document.getElementById('eqImage').value.trim();
+      const brand = document.getElementById('eqBrand').value.trim();
+      const year = document.getElementById('eqYear').value;
+      const phone = document.getElementById('eqPhone').value.trim();
+
+      if (!name || !price_per_day || !location) {
+        showAlert('alertBox', 'Please fill all required fields (Name, Price, Location)', 'error'); return;
+      }
+
+      try {
+        const res = await apiCall('POST', '/equipment/', {
+          name, category, price_per_day: parseInt(price_per_day),
+          location, description, image_url, brand, year: year ? parseInt(year) : null, owner_phone: phone
+        }, true);
+        if (res.equipment) {
+          showAlert('alertBox', '✅ Equipment listed successfully!', 'success');
+          setTimeout(() => window.location.href = 'equipment.html', 2000);
+        } else {
+          showAlert('alertBox', res.error || 'Failed to list equipment', 'error');
+        }
+      } catch(e) {
+        showAlert('alertBox', e.message || 'Backend connection failed. Please ensure API is running on http://localhost:5000', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

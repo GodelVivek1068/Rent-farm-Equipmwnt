@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contact - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .page-header { background: linear-gradient(135deg, var(--green-dark), #2d6a4f); color: white; padding: 48px 24px 36px; text-align: center; }
+    .page-header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+    .contact-page { max-width: 900px; margin: 40px auto; padding: 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .contact-info h3 { font-family: 'Playfair Display', serif; color: var(--green-dark); margin-bottom: 20px; }
+    .info-item { display: flex; gap: 14px; margin-bottom: 20px; align-items: flex-start; }
+    .info-icon { width: 44px; height: 44px; background: var(--green-pale); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--green-mid); font-size: 1rem; flex-shrink: 0; }
+    .info-item h4 { font-weight: 700; color: var(--gray-800); margin-bottom: 2px; font-size: 0.92rem; }
+    .info-item p { color: var(--gray-600); font-size: 0.88rem; }
+    .contact-form-card { background: var(--white); border-radius: var(--radius); padding: 32px; box-shadow: var(--shadow-md); border: 1px solid var(--gray-200); }
+    .contact-form-card h3 { font-family: 'Playfair Display', serif; color: var(--green-dark); margin-bottom: 20px; }
+    @media(max-width:600px) { .contact-page { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li><li><a href="equipment.html">Equipment</a></li>
+      <li><a href="my-rentals.html">My Rentals</a></li><li><a href="list-equipment.html">List Equipment</a></li>
+      <li><a href="contact.html" class="active">Contact</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="page-header">
+    <h1>Contact Us</h1>
+    <p>We're here to help farmers across India</p>
+  </div>
+
+  <div class="contact-page">
+    <div class="contact-info">
+      <h3>Get In Touch</h3>
+      <div class="info-item">
+        <div class="info-icon"><i class="fa-solid fa-phone"></i></div>
+        <div><h4>Phone Support</h4><p>1800-KRISHI (Toll Free)<br/>Mon–Sat, 8 AM – 8 PM</p></div>
+      </div>
+      <div class="info-item">
+        <div class="info-icon"><i class="fa-solid fa-envelope"></i></div>
+        <div><h4>Email</h4><p>support@krishiyantra.in<br/>We reply within 24 hours</p></div>
+      </div>
+      <div class="info-item">
+        <div class="info-icon"><i class="fa-brands fa-whatsapp"></i></div>
+        <div><h4>WhatsApp</h4><p>+91 9699391891<br/>Quick support on WhatsApp</p></div>
+      </div>
+    </div>
+
+    <div class="contact-form-card">
+      <h3>Send a Message</h3>
+      <div id="alertBox"></div>
+      <div class="form-group"><label>Your Name</label><input type="text" id="cName" placeholder="Vivek Jadhav"/></div>
+      <div class="form-group"><label>Phone / Email</label><input type="text" id="cContact" placeholder="Phone or email"/></div>
+      <div class="form-group">
+        <label>Topic</label>
+        <select id="cTopic">
+          <option>Equipment Rental Query</option>
+          <option>Payment Issue</option>
+          <option>List My Equipment</option>
+          <option>Technical Support</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Message</label><textarea id="cMessage" placeholder="How can we help you?"></textarea></div>
+      <button class="btn-green" style="width:100%;justify-content:center;padding:13px;" onclick="sendMessage()">
+        <i class="fa-solid fa-paper-plane"></i> Send Message
+      </button>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-brand"><i class="fa-solid fa-tractor"></i> KrishiYantra</div>
+    <p>Empowering Indian Farmers</p>
+    <p class="footer-copy">© 2024 KrishiYantra</p>
+  </footer>
+
+  <script src="../js/main.js"></script>
+  <script>
+    async function sendMessage() {
+      const name = document.getElementById('cName').value.trim();
+      const contact = document.getElementById('cContact').value.trim();
+      const message = document.getElementById('cMessage').value.trim();
+      if (!name || !contact || !message) { showAlert('alertBox','Please fill all fields','error'); return; }
+      try {
+        await apiCall('POST', '/contact', {
+          name, contact, topic: document.getElementById('cTopic').value, message
+        });
+      } catch(e) {}
+      showAlert('alertBox', '✅ Message sent! We\'ll get back to you soon.', 'success');
+      ['cName','cContact','cMessage'].forEach(id => document.getElementById(id).value='');
+    }
+  </script>
+</body>
+</html>

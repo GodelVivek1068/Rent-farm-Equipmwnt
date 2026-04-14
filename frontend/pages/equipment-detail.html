@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Equipment Detail - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .detail-page { max-width: 960px; margin: 40px auto; padding: 0 24px; }
+    .back-link { color: var(--green-mid); font-size: 0.9rem; font-weight: 600; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 6px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .detail-image {
+      width: 100%; height: 320px; background: var(--green-pale);
+      border-radius: var(--radius); display: flex; align-items: center;
+      justify-content: center; font-size: 7rem; border: 1px solid var(--gray-200);
+    }
+    .detail-info {}
+    .detail-name { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 900; color: var(--green-dark); margin-bottom: 10px; }
+    .detail-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; font-size: 0.88rem; color: var(--gray-600); }
+    .detail-meta span { display: flex; align-items: center; gap: 5px; }
+    .detail-price { font-size: 2rem; font-weight: 900; color: var(--green-mid); margin-bottom: 20px; }
+    .detail-price small { font-size: 0.9rem; color: var(--gray-400); font-weight: 400; }
+    .detail-desc { color: var(--gray-600); line-height: 1.7; margin-bottom: 24px; font-size: 0.93rem; }
+    .owner-card {
+      background: var(--green-pale); border-radius: var(--radius); padding: 16px;
+      display: flex; align-items: center; gap: 14px; margin-bottom: 24px;
+    }
+    .owner-avatar {
+      width: 50px; height: 50px; background: var(--green-mid); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 1.2rem; font-weight: 700; flex-shrink: 0;
+    }
+    .owner-info h4 { font-weight: 700; color: var(--green-dark); margin-bottom: 2px; }
+    .owner-info span { font-size: 0.82rem; color: var(--gray-600); }
+
+    .booking-form { background: var(--white); border: 1.5px solid var(--gray-200); border-radius: var(--radius); padding: 24px; margin-top: 32px; }
+    .booking-form h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--green-dark); margin-bottom: 20px; }
+    .booking-summary {
+      background: var(--green-pale); border-radius: var(--radius-sm); padding: 14px;
+      margin: 16px 0; font-size: 0.9rem;
+    }
+    .booking-summary .summary-row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .booking-summary .summary-total { font-weight: 700; border-top: 1px solid var(--gray-200); padding-top: 8px; margin-top: 4px; color: var(--green-dark); font-size: 1rem; }
+
+    @media(max-width:700px) {
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="equipment.html">Equipment</a></li>
+      <li><a href="my-rentals.html">My Rentals</a></li>
+      <li><a href="list-equipment.html">List Equipment</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="detail-page">
+    <a href="equipment.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Equipment</a>
+    <div id="alertBox"></div>
+    <div id="detailContent"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-brand"><i class="fa-solid fa-tractor"></i> KrishiYantra</div>
+    <p>Empowering Indian Farmers</p>
+    <p class="footer-copy">© 2024 KrishiYantra</p>
+  </footer>
+
+  <script src="../js/main.js"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const equipId = urlParams.get('id');
+    const ICONS = { tractor:'🚜', harvester:'🌾', rotavator:'⚙️', sprayer:'💧', thresher:'🌿', plough:'🔧', seeder:'🌱', pump:'🪣' };
+
+    async function loadDetail() {
+      if (!equipId) {
+        showAlert('alertBox', 'Invalid equipment link. Please open equipment again from the list.', 'error');
+        document.getElementById('detailContent').innerHTML = '';
+        return;
+      }
+
+      if (!/^[a-f\d]{24}$/i.test(equipId)) {
+        showAlert('alertBox', 'This equipment link is outdated. Please open the item again from the Equipment page.', 'error');
+        document.getElementById('detailContent').innerHTML = '<div class="no-results">Invalid equipment ID format.</div>';
+        return;
+      }
+
+      try {
+        const res = await apiCall('GET', `/equipment/${equipId}`);
+        if (!res.equipment) {
+          throw new Error(res.error || 'Equipment not found');
+        }
+        renderDetail(res.equipment);
+      } catch(e) {
+        showAlert('alertBox', e.message || 'Unable to load equipment from backend.', 'error');
+        document.getElementById('detailContent').innerHTML = '<div class="no-results">Could not load equipment details.</div>';
+      }
+    }
+
+    function renderDetail(eq) {
+      const icon = ICONS[eq.category] || '🚜';
+      const imageHtml = eq.image_url
+        ? `<img src="${eq.image_url}" alt="${eq.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='${icon}'"/>`
+        : icon;
+      document.title = `${eq.name} - KrishiYantra`;
+      document.getElementById('detailContent').innerHTML = `
+        <div class="detail-grid">
+          <div>
+            <div class="detail-image">${imageHtml}</div>
+          </div>
+          <div class="detail-info">
+            <span class="badge badge-green">${eq.category}</span>
+            <h1 class="detail-name" style="margin-top:10px">${eq.name}</h1>
+            <div class="detail-meta">
+              <span><i class="fa-solid fa-location-dot"></i> ${eq.location}</span>
+              <span><i class="fa-solid fa-circle" style="color:${eq.available!==false?'#22c55e':'#ef4444'};font-size:0.6rem"></i> ${eq.available!==false?'Available':'Unavailable'}</span>
+            </div>
+            <div class="detail-price">₹${eq.price_per_day}<small>/day</small></div>
+            <p class="detail-desc">${eq.description || 'Quality farm equipment available for rent.'}</p>
+            <div class="owner-card">
+              <div class="owner-avatar">${eq.owner_name?eq.owner_name[0]:'O'}</div>
+              <div class="owner-info">
+                <h4>${eq.owner_name || 'Equipment Owner'}</h4>
+                <span><i class="fa-solid fa-phone"></i> ${eq.owner_phone || 'Contact via platform'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="booking-form">
+          <h3><i class="fa-solid fa-calendar-check"></i> Book This Equipment</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="form-group">
+              <label>Start Date</label>
+              <input type="date" id="startDate" min="${new Date().toISOString().split('T')[0]}" onchange="calcTotal(${eq.price_per_day})"/>
+            </div>
+            <div class="form-group">
+              <label>End Date</label>
+              <input type="date" id="endDate" min="${new Date().toISOString().split('T')[0]}" onchange="calcTotal(${eq.price_per_day})"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Delivery Address</label>
+            <input type="text" id="deliveryAddress" placeholder="Your field / village address"/>
+          </div>
+          <div class="form-group">
+            <label>Special Requests (optional)</label>
+            <textarea id="notes" placeholder="Any special requirements..."></textarea>
+          </div>
+          <div class="booking-summary" id="bookingSummary" style="display:none">
+            <div class="summary-row"><span>Price per day</span><span>₹${eq.price_per_day}</span></div>
+            <div class="summary-row"><span>Number of days</span><span id="numDays">-</span></div>
+            <div class="summary-row summary-total"><span>Total Amount</span><span id="totalAmt">-</span></div>
+          </div>
+          <button id="bookBtn" class="btn-green" style="width:100%;justify-content:center;padding:13px;" onclick="bookEquipment('${eq._id}',${eq.price_per_day})">
+            <i class="fa-solid fa-check-circle"></i> Confirm Booking
+          </button>
+        </div>
+      `;
+    }
+
+    function calcTotal(pricePerDay) {
+      const s = document.getElementById('startDate').value;
+      const e = document.getElementById('endDate').value;
+      if (!s || !e) return;
+      const days = Math.ceil((new Date(e) - new Date(s)) / 86400000);
+      if (days <= 0) { document.getElementById('bookingSummary').style.display='none'; return; }
+      document.getElementById('numDays').textContent = days;
+      document.getElementById('totalAmt').textContent = `₹${days * pricePerDay}`;
+      document.getElementById('bookingSummary').style.display = 'block';
+    }
+
+    async function bookEquipment(eqId, price) {
+      if (!isLoggedIn()) {
+        window.location.href = `login.html?redirect=equipment-detail.html?id=${eqId}`;
+        return;
+      }
+      if (typeof Razorpay === 'undefined') {
+        showAlert('alertBox', 'Payment gateway failed to load. Please refresh and try again.', 'error');
+        return;
+      }
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      const deliveryAddress = document.getElementById('deliveryAddress').value;
+      const notes = document.getElementById('notes').value;
+      if (!startDate || !endDate || !deliveryAddress) {
+        showAlert('alertBox', 'Please fill all required fields', 'error'); return;
+      }
+      const days = Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000);
+      if (days <= 0) { showAlert('alertBox', 'End date must be after start date', 'error'); return; }
+
+      const totalAmount = days * price;
+      const bookBtn = document.getElementById('bookBtn');
+      if (bookBtn) {
+        bookBtn.disabled = true;
+        bookBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing Payment...';
+      }
+
+      const bookingPayload = {
+        equipment_id: eqId,
+        start_date: startDate,
+        end_date: endDate,
+        delivery_address: deliveryAddress,
+        notes,
+        total_amount: totalAmount
+      };
+
+      try {
+        const order = await apiCall('POST', '/rentals/payment/order', bookingPayload, true);
+        const user = getUser() || {};
+
+        const options = {
+          key: order.key_id,
+          amount: order.amount,
+          currency: order.currency || 'INR',
+          name: 'KrishiYantra',
+          description: 'Equipment Booking Payment',
+          order_id: order.order_id,
+          prefill: {
+            name: (order.prefill && order.prefill.name) || user.name || '',
+            email: (order.prefill && order.prefill.email) || user.email || '',
+            contact: (order.prefill && order.prefill.contact) || user.phone || ''
+          },
+          theme: { color: '#2d7a4f' },
+          handler: async function (paymentResponse) {
+            try {
+              const verifyPayload = {
+                ...bookingPayload,
+                razorpay_order_id: paymentResponse.razorpay_order_id,
+                razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                razorpay_signature: paymentResponse.razorpay_signature
+              };
+              const verifyRes = await apiCall('POST', '/rentals/payment/verify', verifyPayload, true);
+              if (verifyRes.rental) {
+                showAlert('alertBox', 'Payment successful. Booking request sent to owner for confirmation.', 'success');
+                setTimeout(() => window.location.href = 'my-rentals.html', 1800);
+              } else {
+                showAlert('alertBox', 'Payment verified but booking could not be created.', 'error');
+              }
+            } catch (verifyErr) {
+              showAlert('alertBox', verifyErr.message || 'Payment verification failed.', 'error');
+            } finally {
+              if (bookBtn) {
+                bookBtn.disabled = false;
+                bookBtn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Confirm Booking';
+              }
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              showAlert('alertBox', 'Payment cancelled. Booking was not created.', 'info');
+              if (bookBtn) {
+                bookBtn.disabled = false;
+                bookBtn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Confirm Booking';
+              }
+            }
+          }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+      } catch(e) {
+        if (bookBtn) {
+          bookBtn.disabled = false;
+          bookBtn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Confirm Booking';
+        }
+        if ((e.message || '').toLowerCase().includes('authentication required') || (e.message || '').toLowerCase().includes('unauthorized')) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          showAlert('alertBox', 'Your session expired after reseeding. Please login again.', 'error');
+          setTimeout(() => {
+            window.location.href = `login.html?redirect=equipment-detail.html?id=${eqId}`;
+          }, 1500);
+          return;
+        }
+        showAlert('alertBox', e.message || 'Payment initialization failed. Please try again.', 'error');
+      }
+    }
+
+    loadDetail();
+  </script>
+</body>
+</html>

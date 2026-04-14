@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KrishiYantra - Farm Equipment Rental</title>
+  <link rel="stylesheet" href="css/main.css"/>
+  <link rel="stylesheet" href="css/home.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <i class="fa-solid fa-tractor"></i>
+      <span>KrishiYantra</span>
+    </div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="pages/equipment.html">Equipment</a></li>
+      <li><a href="pages/my-rentals.html">My Rentals</a></li>
+      <li><a href="pages/list-equipment.html">List Equipment</a></li>
+      <li><a href="pages/contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="pages/login.html" class="btn-outline">Login</a>
+      <a href="pages/register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <span class="hero-tag">🌾 India's Farmer-First Platform</span>
+      <h1>Rent Farm Equipment<br/><span class="highlight">Near You</span></h1>
+      <p>Connect with local equipment owners. Affordable rentals for tractors, harvesters, rotavators & more — delivered to your field.</p>
+      <div class="hero-search">
+        <input type="text" id="searchInput" placeholder="Search equipment (e.g. tractor, harvester...)" />
+        <input type="text" id="locationInput" placeholder="Your village / city" />
+        <button onclick="searchEquipment()"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><strong id="statEquip">0</strong><span>Equipment Listed</span></div>
+        <div class="stat"><strong id="statOwners">0</strong><span>Owners</span></div>
+        <div class="stat"><strong id="statRentals">0</strong><span>Rentals Done</span></div>
+      </div>
+    </div>
+    <div class="hero-illustration">
+      <img src="https://cdn-icons-png.flaticon.com/512/2933/2933665.png" alt="tractor" class="float-img"/>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section class="section categories">
+    <h2 class="section-title">Browse by Category</h2>
+    <div class="category-grid">
+      <a href="pages/equipment.html?cat=tractor" class="cat-card">
+        <div class="cat-icon">🚜</div><span>Tractors</span>
+      </a>
+      <a href="pages/equipment.html?cat=harvester" class="cat-card">
+        <div class="cat-icon">🌾</div><span>Harvesters</span>
+      </a>
+      <a href="pages/equipment.html?cat=rotavator" class="cat-card">
+        <div class="cat-icon">⚙️</div><span>Rotavators</span>
+      </a>
+      <a href="pages/equipment.html?cat=sprayer" class="cat-card">
+        <div class="cat-icon">💧</div><span>Sprayers</span>
+      </a>
+      <a href="pages/equipment.html?cat=thresher" class="cat-card">
+        <div class="cat-icon">🌿</div><span>Threshers</span>
+      </a>
+      <a href="pages/equipment.html?cat=plough" class="cat-card">
+        <div class="cat-icon">🔧</div><span>Ploughs</span>
+      </a>
+      <a href="pages/equipment.html?cat=seeder" class="cat-card">
+        <div class="cat-icon">🌱</div><span>Seeders</span>
+      </a>
+      <a href="pages/equipment.html?cat=pump" class="cat-card">
+        <div class="cat-icon">🪣</div><span>Water Pumps</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- FEATURED EQUIPMENT -->
+  <section class="section featured">
+    <h2 class="section-title">Featured Equipment</h2>
+    <div class="equipment-grid" id="featuredGrid">
+      <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section how-it-works">
+    <h2 class="section-title">How It Works</h2>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><h3>Search Equipment</h3><p>Find tractors, harvesters & more near your location.</p></div>
+      <div class="step-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+      <div class="step"><div class="step-num">2</div><h3>Book Online</h3><p>Select dates and confirm your rental instantly.</p></div>
+      <div class="step-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+      <div class="step"><div class="step-num">3</div><h3>Use & Return</h3><p>Owner delivers to your farm. Use and return on time.</p></div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="section testimonials">
+    <h2 class="section-title">Farmer Stories</h2>
+    <div class="testimonial-grid">
+      <div class="testimonial-card">
+        <p>"Saved ₹40,000 this season by renting a tractor instead of hiring a contractor."</p>
+        <strong>— Rajesh Patil, Solapur</strong>
+      </div>
+      <div class="testimonial-card">
+        <p>"Listed my harvester and earned ₹18,000 in one month during idle season!"</p>
+        <strong>— Suresh Deshmukh, Pune</strong>
+      </div>
+      <div class="testimonial-card">
+        <p>"Very easy to use on mobile. Booked rotavator in 5 minutes."</p>
+        <strong>— Meena Jadhav, Nashik</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-brand"><i class="fa-solid fa-tractor"></i> KrishiYantra</div>
+    <p>Empowering Indian Farmers with Affordable Equipment Access</p>
+    <div class="footer-links">
+      <a href="#">About</a><a href="#">Privacy</a><a href="#">Terms</a><a href="pages/contact.html">Contact</a>
+    </div>
+    <p class="footer-copy">© 2024 KrishiYantra. All rights reserved.</p>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

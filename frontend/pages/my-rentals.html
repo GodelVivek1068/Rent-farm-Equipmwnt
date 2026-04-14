@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Rentals - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .page-header { background: linear-gradient(135deg, var(--green-dark), #2d6a4f); color: white; padding: 48px 24px 36px; text-align: center; }
+    .page-header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+    .rentals-page { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+    .tab-nav { display: flex; gap: 4px; background: var(--gray-100); border-radius: var(--radius); padding: 4px; margin-bottom: 24px; }
+    .tab-btn {
+      flex: 1; padding: 10px 16px; border: none; background: none;
+      border-radius: calc(var(--radius) - 4px); font-family: inherit;
+      font-size: 0.88rem; font-weight: 600; cursor: pointer; color: var(--gray-600);
+      transition: var(--transition);
+    }
+    .tab-btn.active { background: var(--white); color: var(--green-dark); box-shadow: var(--shadow-sm); }
+    .rental-card {
+      background: var(--white); border-radius: var(--radius); border: 1px solid var(--gray-200);
+      padding: 20px; margin-bottom: 16px; display: flex; gap: 16px; align-items: flex-start;
+      box-shadow: var(--shadow-sm); transition: var(--transition);
+    }
+    .rental-card:hover { box-shadow: var(--shadow-md); }
+    .rental-icon { font-size: 2.5rem; flex-shrink: 0; }
+    .rental-info { flex: 1; }
+    .rental-info h4 { font-weight: 700; color: var(--green-dark); margin-bottom: 6px; }
+    .rental-meta { font-size: 0.82rem; color: var(--gray-600); display: flex; flex-wrap: wrap; gap: 12px; }
+    .rental-meta span { display: flex; align-items: center; gap: 5px; }
+    .rental-amount { font-weight: 700; color: var(--green-mid); font-size: 1.1rem; white-space: nowrap; }
+    .no-rentals { text-align: center; padding: 60px; color: var(--gray-400); }
+    .no-rentals i { font-size: 3rem; display: block; margin-bottom: 16px; }
+    .login-prompt { text-align: center; padding: 60px; }
+    .login-prompt h3 { font-family: 'Playfair Display', serif; color: var(--green-dark); margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li><li><a href="equipment.html">Equipment</a></li>
+      <li><a href="my-rentals.html" class="active">My Rentals</a></li><li><a href="list-equipment.html">List Equipment</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="page-header">
+    <h1>My Rentals</h1>
+    <p>Track all your equipment bookings</p>
+  </div>
+
+  <div class="rentals-page" id="pageContent">
+    <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-brand"><i class="fa-solid fa-tractor"></i> KrishiYantra</div>
+    <p>Empowering Indian Farmers</p>
+    <p class="footer-copy">© 2024 KrishiYantra</p>
+  </footer>
+
+  <script src="../js/main.js"></script>
+  <script>
+    const ICONS = { tractor:'🚜', harvester:'🌾', rotavator:'⚙️', sprayer:'💧', thresher:'🌿', plough:'🔧', seeder:'🌱', pump:'🪣' };
+
+    async function init() {
+      const page = document.getElementById('pageContent');
+      if (!isLoggedIn()) {
+        page.innerHTML = `
+          <div class="login-prompt">
+            <h3>Please Login to View Your Rentals</h3>
+            <p style="color:var(--gray-600);margin-bottom:24px">Track all your equipment bookings in one place.</p>
+            <a href="login.html?redirect=my-rentals.html" class="btn-green" style="display:inline-flex">
+              <i class="fa-solid fa-right-to-bracket"></i> Login Now
+            </a>
+          </div>`;
+        return;
+      }
+
+      page.innerHTML = `
+        <div class="tab-nav">
+          <button class="tab-btn active" onclick="switchTab('renting', this)">Equipment I'm Renting</button>
+          <button class="tab-btn" onclick="switchTab('listing', this)">My Listed Equipment</button>
+        </div>
+        <div id="tabContent"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i></div></div>
+      `;
+      loadRentals('renting');
+    }
+
+    let currentTab = 'renting';
+
+    function switchTab(tab, btn) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadRentals(tab);
+    }
+
+    async function loadRentals(tab) {
+      const content = document.getElementById('tabContent');
+      content.innerHTML = '<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+      try {
+        const endpoint = tab === 'renting' ? '/rentals/my' : '/equipment/my';
+        const res = await apiCall('GET', endpoint, null, true);
+        if (tab === 'renting') {
+          renderRentals(res.rentals || getDemoRentals());
+        } else {
+          renderMyEquipment(res.equipment || getDemoMyEquipment());
+        }
+      } catch(e) {
+        if (tab === 'renting') renderRentals(getDemoRentals());
+        else renderMyEquipment(getDemoMyEquipment());
+      }
+    }
+
+    function renderRentals(rentals) {
+      const content = document.getElementById('tabContent');
+      if (!rentals.length) {
+        content.innerHTML = `<div class="no-rentals"><i class="fa-solid fa-calendar-xmark"></i>No rentals yet.<br/><a href="equipment.html" class="btn-green" style="display:inline-flex;margin-top:20px">Browse Equipment</a></div>`;
+        return;
+      }
+      content.innerHTML = rentals.map(r => {
+        const statusBadge = r.status === 'confirmed' ? 'badge-green' : r.status === 'pending' ? 'badge-amber' : 'badge-red';
+        return `
+          <div class="rental-card">
+            <div class="rental-icon">${ICONS[r.category]||'🚜'}</div>
+            <div class="rental-info">
+              <h4>${r.equipment_name}</h4>
+              <div class="rental-meta">
+                <span><i class="fa-solid fa-calendar"></i> ${r.start_date} → ${r.end_date}</span>
+                <span><i class="fa-solid fa-location-dot"></i> ${r.delivery_address}</span>
+                <span class="badge ${statusBadge}">${r.status}</span>
+              </div>
+            </div>
+            <div class="rental-amount">₹${r.total_amount}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderMyEquipment(equipment) {
+      const content = document.getElementById('tabContent');
+      if (!equipment.length) {
+        content.innerHTML = `<div class="no-rentals"><i class="fa-solid fa-tractor"></i>No equipment listed yet.<br/><a href="list-equipment.html" class="btn-green" style="display:inline-flex;margin-top:20px">List Equipment</a></div>`;
+        return;
+      }
+      content.innerHTML = equipment.map(eq => `
+        <div class="rental-card">
+          <div class="rental-icon">${ICONS[eq.category]||'🚜'}</div>
+          <div class="rental-info">
+            <h4>${eq.name}</h4>
+            <div class="rental-meta">
+              <span><i class="fa-solid fa-location-dot"></i> ${eq.location}</span>
+              <span class="badge badge-green">${eq.category}</span>
+            </div>
+          </div>
+          <div class="rental-amount">₹${eq.price_per_day}/day</div>
+        </div>
+      `).join('');
+    }
+
+    function getDemoRentals() {
+      return [
+        { equipment_name:'Mahindra 575 DI Tractor', category:'tractor', start_date:'2024-11-10', end_date:'2024-11-12', delivery_address:'Koregaon, Pune', total_amount:5000, status:'confirmed' },
+        { equipment_name:'Power Sprayer 16L', category:'sprayer', start_date:'2024-11-20', end_date:'2024-11-21', delivery_address:'Shirur, Pune', total_amount:600, status:'pending' },
+      ];
+    }
+    function getDemoMyEquipment() {
+      return [
+        { name:'My Rotavator 7ft', category:'rotavator', location:'Pune', price_per_day:1200 },
+      ];
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Browse Equipment - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .page-header {
+      background: linear-gradient(135deg, var(--green-dark), #2d6a4f);
+      color: white; padding: 48px 24px 36px; text-align: center;
+    }
+    .page-header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 8px; }
+    .page-header p { color: rgba(255,255,255,0.75); }
+
+    .equipment-page { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .filter-bar {
+      display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+      background: var(--white); padding: 20px; border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); margin-bottom: 28px;
+      border: 1px solid var(--gray-200);
+    }
+    .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 150px; }
+    .filter-bar .form-group label { font-size: 0.8rem; }
+    .filter-bar button { align-self: flex-end; }
+
+    .results-info {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px; font-size: 0.88rem; color: var(--gray-600);
+    }
+    .sort-select { padding: 6px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); font-family: inherit; }
+
+    .no-results { text-align: center; padding: 60px 20px; color: var(--gray-400); }
+    .no-results i { font-size: 3rem; margin-bottom: 16px; display: block; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="equipment.html" class="active">Equipment</a></li>
+      <li><a href="my-rentals.html">My Rentals</a></li>
+      <li><a href="list-equipment.html">List Equipment</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="page-header">
+    <h1>Browse Farm Equipment</h1>
+    <p>Find the right tool for your farm, near your location</p>
+  </div>
+
+  <div class="equipment-page">
+    <div class="filter-bar">
+      <div class="form-group">
+        <label>Search</label>
+        <input type="text" id="searchQ" placeholder="Equipment name..." />
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="catFilter">
+          <option value="">All Categories</option>
+          <option value="tractor">Tractor</option>
+          <option value="harvester">Harvester</option>
+          <option value="rotavator">Rotavator</option>
+          <option value="sprayer">Sprayer</option>
+          <option value="thresher">Thresher</option>
+          <option value="plough">Plough</option>
+          <option value="seeder">Seeder</option>
+          <option value="pump">Water Pump</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <input type="text" id="locFilter" placeholder="City / Village..." />
+      </div>
+      <div class="form-group">
+        <label>Max Price/Day (₹)</label>
+        <input type="number" id="priceFilter" placeholder="e.g. 2000" />
+      </div>
+      <button class="btn-green" onclick="loadEquipment()"><i class="fa-solid fa-filter"></i> Filter</button>
+      <button class="btn-outline" style="color:var(--gray-600);border-color:var(--gray-200);padding:10px 16px;border-radius:50px;cursor:pointer;" onclick="clearFilters()">Clear</button>
+    </div>
+
+    <div class="results-info">
+      <span id="resultsCount">Loading...</span>
+      <select class="sort-select" id="sortSelect" onchange="loadEquipment()">
+        <option value="newest">Newest First</option>
+        <option value="price_asc">Price: Low to High</option>
+        <option value="price_desc">Price: High to Low</option>
+      </select>
+    </div>
+
+    <div class="equipment-grid" id="equipmentGrid">
+      <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading equipment...</div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-brand"><i class="fa-solid fa-tractor"></i> KrishiYantra</div>
+    <p>Empowering Indian Farmers</p>
+    <div class="footer-links"><a href="#">About</a><a href="#">Privacy</a><a href="contact.html">Contact</a></div>
+    <p class="footer-copy">© 2024 KrishiYantra</p>
+  </footer>
+
+  <script src="../js/main.js"></script>
+  <script>
+    // Read URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('search')) document.getElementById('searchQ').value = urlParams.get('search');
+    if (urlParams.get('location')) document.getElementById('locFilter').value = urlParams.get('location');
+    if (urlParams.get('cat')) document.getElementById('catFilter').value = urlParams.get('cat');
+
+    async function loadEquipment() {
+      const grid = document.getElementById('equipmentGrid');
+      const count = document.getElementById('resultsCount');
+      grid.innerHTML = '<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+
+      const params = new URLSearchParams();
+      const search = document.getElementById('searchQ').value;
+      const cat = document.getElementById('catFilter').value;
+      const loc = document.getElementById('locFilter').value;
+      const price = document.getElementById('priceFilter').value;
+      const sort = document.getElementById('sortSelect').value;
+
+      if (search) params.append('search', search);
+      if (cat) params.append('category', cat);
+      if (loc) params.append('location', loc);
+      if (price) params.append('max_price', price);
+      params.append('sort', sort);
+
+      try {
+        const res = await apiCall('GET', `/equipment/?${params}`);
+        const equipment = res.equipment || [];
+        count.textContent = `${equipment.length} equipment found`;
+        if (equipment.length === 0) {
+          grid.innerHTML = `<div class="no-results"><i class="fa-solid fa-magnifying-glass"></i>No equipment found. Try different filters.</div>`;
+        } else {
+          grid.innerHTML = equipment.map(renderEquipmentCard).join('');
+        }
+      } catch (e) {
+        count.textContent = '0 equipment found';
+        grid.innerHTML = `<div class="no-results"><i class="fa-solid fa-plug-circle-xmark"></i>${e.message || 'Unable to connect to backend. Please start the API server.'}</div>`;
+      }
+    }
+
+    function clearFilters() {
+      ['searchQ','locFilter','priceFilter'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('catFilter').value = '';
+      loadEquipment();
+    }
+
+    loadEquipment();
+  </script>
+</body>
+</html>
