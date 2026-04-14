@@ -177,7 +177,8 @@ Simply open `frontend/index.html` in your browser.
     - Build command: *(leave empty)*
 3. Open [netlify.toml](netlify.toml) and replace:
     - `https://YOUR-RENDER-SERVICE.onrender.com`
-    with your real Render backend URL.
+    with your real Render backend URL if your Render service name is different.
+    - If you used the provided blueprint name, the URL is `https://krishiyantra-api.onrender.com`.
 4. Trigger a new deploy in Netlify.
 
 ### 3. Verify Production
@@ -191,6 +192,7 @@ Notes:
 - Frontend now uses `http://localhost:5000/api` on localhost and `/api` on hosted domains.
 - Netlify proxies `/api/*` to Render using [netlify.toml](netlify.toml).
 - Keep CORS locked to your Netlify domain in production.
+- If equipment still returns 500, verify `MONGO_URI` in Render points to MongoDB Atlas and that Atlas network access allows Render.
 
 ---
 

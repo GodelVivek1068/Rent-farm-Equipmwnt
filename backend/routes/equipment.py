@@ -27,36 +27,42 @@ def eq_to_dict(eq):
 
 @equipment_bp.route('/', methods=['GET'])
 def get_equipment():
-    query = {}
-    search = request.args.get('search')
-    category = request.args.get('category')
-    location = request.args.get('location')
-    max_price = request.args.get('max_price')
-    limit = int(request.args.get('limit', 50))
-    sort = request.args.get('sort', 'newest')
+    try:
+        query = {}
+        search = request.args.get('search')
+        category = request.args.get('category')
+        location = request.args.get('location')
+        max_price = request.args.get('max_price')
+        limit = int(request.args.get('limit', 50))
+        sort = request.args.get('sort', 'newest')
 
-    if search:
-        query['$or'] = [
-            {'name': {'$regex': search, '$options': 'i'}},
-            {'description': {'$regex': search, '$options': 'i'}}
-        ]
-    if category:
-        query['category'] = category
-    if location:
-        query['location'] = {'$regex': location, '$options': 'i'}
-    if max_price:
-        query['price_per_day'] = {'$lte': int(max_price)}
+        if search:
+            query['$or'] = [
+                {'name': {'$regex': search, '$options': 'i'}},
+                {'description': {'$regex': search, '$options': 'i'}}
+            ]
+        if category:
+            query['category'] = category
+        if location:
+            query['location'] = {'$regex': location, '$options': 'i'}
+        if max_price:
+            query['price_per_day'] = {'$lte': int(max_price)}
 
-    query['available'] = True
+        query['available'] = True
 
-    sort_field = [('created_at', -1)]
-    if sort == 'price_asc':
-        sort_field = [('price_per_day', 1)]
-    elif sort == 'price_desc':
-        sort_field = [('price_per_day', -1)]
+        sort_field = [('created_at', -1)]
+        if sort == 'price_asc':
+            sort_field = [('price_per_day', 1)]
+        elif sort == 'price_desc':
+            sort_field = [('price_per_day', -1)]
 
-    equipment = list(mongo.db.equipment.find(query).sort(sort_field).limit(limit))
-    return jsonify({'equipment': [eq_to_dict(e) for e in equipment], 'total': len(equipment)})
+        equipment = list(mongo.db.equipment.find(query).sort(sort_field).limit(limit))
+        return jsonify({'equipment': [eq_to_dict(e) for e in equipment], 'total': len(equipment)})
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to load equipment. Check MONGO_URI, Atlas network access, and that the database is reachable.',
+            'details': str(e)
+        }), 503
 
 
 @equipment_bp.route('/<eq_id>', methods=['GET'])
