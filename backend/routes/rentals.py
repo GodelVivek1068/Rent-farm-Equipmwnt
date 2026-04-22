@@ -9,6 +9,49 @@ from config.db import mongo
 from utils.auth_middleware import get_current_user, require_auth
 
 rentals_bp = Blueprint('rentals', __name__)
+ACTIVE_RENTAL_STATUSES = {'pending', 'confirmed'}
+
+
+def _equipment_id_variants(equipment_id):
+    variants = []
+    if isinstance(equipment_id, ObjectId):
+        variants.append(equipment_id)
+        variants.append(str(equipment_id))
+        return variants
+
+    equipment_id_str = str(equipment_id or '').strip()
+    if not equipment_id_str:
+        return variants
+
+    variants.append(equipment_id_str)
+    try:
+        variants.append(ObjectId(equipment_id_str))
+    except Exception:
+        pass
+    return variants
+
+
+def _sync_equipment_availability(equipment_id):
+    equipment_id_variants = _equipment_id_variants(equipment_id)
+    if not equipment_id_variants:
+        return
+
+    equipment_object_id = None
+    for value in equipment_id_variants:
+        if isinstance(value, ObjectId):
+            equipment_object_id = value
+            break
+    if equipment_object_id is None:
+        return
+
+    active_booking = mongo.db.rentals.find_one({
+        'equipment_id': {'$in': equipment_id_variants},
+        'status': {'$in': list(ACTIVE_RENTAL_STATUSES)}
+    })
+    mongo.db.equipment.update_one(
+        {'_id': equipment_object_id},
+        {'$set': {'available': active_booking is None}}
+    )
 
 def rental_to_dict(r):
     return {
@@ -128,6 +171,7 @@ def create_rental():
         })
         result = mongo.db.rentals.insert_one(doc)
         doc['_id'] = result.inserted_id
+        _sync_equipment_availability(doc['equipment_id'])
         return jsonify({'rental': rental_to_dict(doc)}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -220,6 +264,7 @@ def verify_payment_and_create_rental():
         })
         result = mongo.db.rentals.insert_one(doc)
         doc['_id'] = result.inserted_id
+        _sync_equipment_availability(doc['equipment_id'])
         return jsonify({'rental': rental_to_dict(doc)}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -267,11 +312,46 @@ def update_rental_status(rental_id):
         rental = mongo.db.rentals.find_one({'_id': ObjectId(rental_id)})
         if not rental:
             return jsonify({'error': 'Not found'}), 404
-        # Owner can confirm/cancel, renter can cancel
-        if str(rental['owner_id']) != str(user['_id']) and str(rental['renter_id']) != str(user['_id']):
+        is_owner = str(rental['owner_id']) == str(user['_id'])
+        is_renter = str(rental['renter_id']) == str(user['_id'])
+        if not is_owner and not is_renter:
             return jsonify({'error': 'Unauthorized'}), 403
+
+        # Renter is only allowed to cancel their own booking request.
+        if is_renter and not is_owner and status != 'cancelled':
+            return jsonify({'error': 'Renter can only cancel booking'}), 403
+
+        # Owner should not set booking back to pending manually.
+        if is_owner and status == 'pending':
+            return jsonify({'error': 'Owner cannot set status back to pending'}), 400
+
         mongo.db.rentals.update_one({'_id': ObjectId(rental_id)}, {'$set': {'status': status}})
+
+        auto_cancelled_count = 0
+        if is_owner and status == 'confirmed':
+            equipment_variants = _equipment_id_variants(rental.get('equipment_id'))
+            if equipment_variants:
+                auto_cancel_result = mongo.db.rentals.update_many(
+                    {
+                        '_id': {'$ne': ObjectId(rental_id)},
+                        'equipment_id': {'$in': equipment_variants},
+                        'status': 'pending'
+                    },
+                    {
+                        '$set': {
+                            'status': 'cancelled',
+                            'cancel_reason': 'Another booking was confirmed by owner',
+                            'cancelled_at': datetime.datetime.utcnow()
+                        }
+                    }
+                )
+                auto_cancelled_count = auto_cancel_result.modified_count
+
         updated = mongo.db.rentals.find_one({'_id': ObjectId(rental_id)})
-        return jsonify({'rental': rental_to_dict(updated)})
+        _sync_equipment_availability(updated['equipment_id'])
+        return jsonify({
+            'rental': rental_to_dict(updated),
+            'auto_cancelled_pending_requests': auto_cancelled_count
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 400

@@ -7,6 +7,10 @@ Fields:
   - category       : str ('tractor'|'harvester'|'rotavator'|'sprayer'|'thresher'|'plough'|'seeder'|'pump')
   - price_per_day  : int (in INR)
   - location       : str
+  - city           : str
+  - district       : str
+  - latitude       : float
+  - longitude      : float
   - description    : str
   - brand          : str
   - year           : int
@@ -22,6 +26,10 @@ EQUIPMENT_SCHEMA = {
     'category': str,
     'price_per_day': int,
     'location': str,
+    'city': str,
+    'district': str,
+    'latitude': float,
+    'longitude': float,
     'description': str,
     'brand': str,
     'year': int,

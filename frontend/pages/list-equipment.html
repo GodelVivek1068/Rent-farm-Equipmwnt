@@ -73,6 +73,29 @@
         <label>Location *</label>
         <input type="text" id="eqLocation" placeholder="Village / City, District"/>
       </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" id="eqCity" placeholder="e.g. Pune"/>
+        </div>
+        <div class="form-group">
+          <label>District</label>
+          <input type="text" id="eqDistrict" placeholder="e.g. Pune"/>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>Latitude (optional)</label>
+          <input type="number" step="any" id="eqLatitude" placeholder="18.5204"/>
+        </div>
+        <div class="form-group">
+          <label>Longitude (optional)</label>
+          <input type="number" step="any" id="eqLongitude" placeholder="73.8567"/>
+        </div>
+      </div>
+      <button type="button" class="btn-outline" style="margin-bottom:12px" onclick="fillCurrentCoordinates()">
+        <i class="fa-solid fa-location-crosshairs"></i> Use Current Coordinates
+      </button>
       <div class="form-group">
         <label>Description</label>
         <textarea id="eqDesc" placeholder="Describe your equipment: brand, model, condition, attachments available, HP, etc."></textarea>
@@ -116,6 +139,24 @@
       document.getElementById('catPreview').textContent = ICONS[cat] || '🚜';
     }
 
+    function fillCurrentCoordinates() {
+      if (!navigator.geolocation) {
+        showAlert('alertBox', 'Geolocation is not supported in this browser.', 'error');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          document.getElementById('eqLatitude').value = Number(position.coords.latitude).toFixed(6);
+          document.getElementById('eqLongitude').value = Number(position.coords.longitude).toFixed(6);
+          showAlert('alertBox', 'Coordinates captured from your device.', 'success');
+        },
+        () => {
+          showAlert('alertBox', 'Unable to get your current location. You can enter coordinates manually.', 'error');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
     async function listEquipment() {
       if (!isLoggedIn()) {
         window.location.href = 'login.html?redirect=list-equipment.html'; return;
@@ -132,6 +173,10 @@
       const category = document.getElementById('eqCategory').value;
       const price_per_day = document.getElementById('eqPrice').value;
       const location = document.getElementById('eqLocation').value.trim();
+      const city = document.getElementById('eqCity').value.trim();
+      const district = document.getElementById('eqDistrict').value.trim();
+      const latitude = document.getElementById('eqLatitude').value;
+      const longitude = document.getElementById('eqLongitude').value;
       const description = document.getElementById('eqDesc').value.trim();
       const image_url = document.getElementById('eqImage').value.trim();
       const brand = document.getElementById('eqBrand').value.trim();
@@ -145,7 +190,16 @@
       try {
         const res = await apiCall('POST', '/equipment/', {
           name, category, price_per_day: parseInt(price_per_day),
-          location, description, image_url, brand, year: year ? parseInt(year) : null, owner_phone: phone
+          location,
+          city,
+          district,
+          latitude: latitude ? parseFloat(latitude) : null,
+          longitude: longitude ? parseFloat(longitude) : null,
+          description,
+          image_url,
+          brand,
+          year: year ? parseInt(year) : null,
+          owner_phone: phone
         }, true);
         if (res.equipment) {
           showAlert('alertBox', '✅ Equipment listed successfully!', 'success');

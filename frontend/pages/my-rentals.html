@@ -92,9 +92,12 @@
         <div id="tabContent"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i></div></div>
       `;
       loadRentals('renting');
+      startAutoRefresh();
     }
 
     let currentTab = 'renting';
+    let autoRefreshTimer = null;
+    const AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
 
     function switchTab(tab, btn) {
       currentTab = tab;
@@ -102,6 +105,27 @@
       btn.classList.add('active');
       loadRentals(tab);
     }
+
+    function startAutoRefresh() {
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      autoRefreshTimer = setInterval(() => {
+        if (document.hidden) return; // Pause if tab is not visible
+        loadRentals(currentTab);
+      }, AUTO_REFRESH_INTERVAL);
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+    }
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopAutoRefresh();
+      else startAutoRefresh();
+    });
 
     async function loadRentals(tab) {
       const content = document.getElementById('tabContent');
@@ -128,6 +152,7 @@
       }
       content.innerHTML = rentals.map(r => {
         const statusBadge = r.status === 'confirmed' ? 'badge-green' : r.status === 'pending' ? 'badge-amber' : 'badge-red';
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.delivery_address || '')}`;
         return `
           <div class="rental-card">
             <div class="rental-icon">${ICONS[r.category]||'🚜'}</div>
@@ -139,7 +164,12 @@
                 <span class="badge ${statusBadge}">${r.status}</span>
               </div>
             </div>
-            <div class="rental-amount">₹${r.total_amount}</div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
+              <div class="rental-amount">₹${r.total_amount}</div>
+              <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="btn-map-bold">
+                <i class="fa-solid fa-map-location-dot"></i> View Map
+              </a>
+            </div>
           </div>
         `;
       }).join('');

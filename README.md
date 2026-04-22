@@ -51,21 +51,16 @@ farm_rental/
 
 ### Prerequisites
 - Python 3.9+ installed
-- MongoDB installed locally **or** a MongoDB Atlas account (free tier)
+- MongoDB installed locally
 - A browser (Chrome/Firefox/Safari)
 
 ---
 
 ### Step 1 — Set Up MongoDB
 
-**Option A: Local MongoDB**
+**Local MongoDB**
 1. Download and install MongoDB Community: https://www.mongodb.com/try/download/community
 2. Start MongoDB: `mongod` (or use MongoDB Compass GUI)
-
-**Option B: MongoDB Atlas (Cloud, Free)**
-1. Sign up at https://www.mongodb.com/cloud/atlas
-2. Create a free M0 cluster
-3. Get your connection string (looks like `mongodb+srv://...`)
 
 ---
 
@@ -159,7 +154,7 @@ Simply open `frontend/index.html` in your browser.
     - Build Command: `pip install -r requirements.txt`
     - Start Command: `gunicorn "app:create_app()"`
 4. Add environment variables in Render:
-    - `MONGO_URI` = your MongoDB Atlas URI
+    - `MONGO_URI` = your MongoDB URI
     - `SECRET_KEY` = long random secret
     - `RAZORPAY_KEY_ID` = your Razorpay key id
     - `RAZORPAY_KEY_SECRET` = your Razorpay key secret
@@ -192,7 +187,7 @@ Notes:
 - Frontend now uses `http://localhost:5000/api` on localhost and `/api` on hosted domains.
 - Netlify proxies `/api/*` to Render using [netlify.toml](netlify.toml).
 - Keep CORS locked to your Netlify domain in production.
-- If equipment still returns 500, verify `MONGO_URI` in Render points to MongoDB Atlas and that Atlas network access allows Render.
+- If equipment still returns 500, verify `MONGO_URI` points to a reachable MongoDB instance.
 
 ---
 

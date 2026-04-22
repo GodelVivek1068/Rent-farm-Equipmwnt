@@ -164,6 +164,34 @@ img { max-width: 100%; }
 }
 .btn-amber:hover { background: var(--amber-dark); color: white; transform: translateY(-1px); }
 
+.btn-map-bold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 2px solid #0b4f9c;
+  background: linear-gradient(135deg, #1a73e8, #0b57d0);
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(26, 115, 232, 0.28);
+  transition: var(--transition);
+}
+
+.btn-map-bold:hover {
+  background: linear-gradient(135deg, #0b57d0, #0847ad);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(11, 87, 208, 0.35);
+}
+
+.btn-map-bold:focus-visible {
+  outline: 3px solid rgba(26, 115, 232, 0.28);
+  outline-offset: 2px;
+}
+
 /* ===== CARDS ===== */
 .equipment-card {
   background: var(--white); border-radius: var(--radius);
@@ -200,6 +228,11 @@ img { max-width: 100%; }
   margin-bottom: 12px;
 }
 .equipment-card .card-price span { font-size: 0.78rem; color: var(--gray-400); font-weight: 400; }
+.equipment-card .card-unavailable-note {
+  font-size: 0.8rem;
+  color: #b45309;
+  margin-bottom: 10px;
+}
 
 /* ===== FORM ===== */
 .form-group { margin-bottom: 18px; }

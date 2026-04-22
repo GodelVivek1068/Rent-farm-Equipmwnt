@@ -44,8 +44,39 @@
     .booking-summary .summary-row { display: flex; justify-content: space-between; padding: 4px 0; }
     .booking-summary .summary-total { font-weight: 700; border-top: 1px solid var(--gray-200); padding-top: 8px; margin-top: 4px; color: var(--green-dark); font-size: 1rem; }
 
+    .alt-wrap {
+      margin-top: 24px;
+      background: #fffdf3;
+      border: 1px solid #f5de8d;
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .alt-title {
+      color: #7c4a03;
+      font-weight: 800;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .alt-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .alt-card {
+      background: var(--white);
+      border: 1px solid #f2d27a;
+      border-radius: var(--radius-sm);
+      padding: 12px;
+    }
+    .alt-name { font-weight: 700; color: var(--green-dark); margin-bottom: 6px; }
+    .alt-meta { color: var(--gray-600); font-size: 0.84rem; margin-bottom: 8px; }
+    .alt-price { color: var(--green-mid); font-weight: 800; margin-bottom: 8px; }
+
     @media(max-width:700px) {
       .detail-grid { grid-template-columns: 1fr; }
+      .alt-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -82,7 +113,38 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const equipId = urlParams.get('id');
+    let currentEquipment = null;
+    let detailRefreshTimer = null;
+    const DETAIL_REFRESH_INTERVAL = 6000; // 6 seconds
     const ICONS = { tractor:'🚜', harvester:'🌾', rotavator:'⚙️', sprayer:'💧', thresher:'🌿', plough:'🔧', seeder:'🌱', pump:'🪣' };
+    const safeText = (value) => String(value || '').replace(/[&<>"']/g, (m) => {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      if (m === '"') return '&quot;';
+      return '&#39;';
+    });
+
+    function startDetailRefresh() {
+      if (detailRefreshTimer) clearInterval(detailRefreshTimer);
+      detailRefreshTimer = setInterval(() => {
+        if (document.hidden) return; // Pause if tab is not visible
+        loadDetail();
+      }, DETAIL_REFRESH_INTERVAL);
+    }
+
+    function stopDetailRefresh() {
+      if (detailRefreshTimer) {
+        clearInterval(detailRefreshTimer);
+        detailRefreshTimer = null;
+      }
+    }
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopDetailRefresh();
+      else startDetailRefresh();
+    });
 
     async function loadDetail() {
       if (!equipId) {
@@ -110,9 +172,11 @@
     }
 
     function renderDetail(eq) {
+      currentEquipment = eq;
+      const isAvailable = eq.available !== false;
       const icon = ICONS[eq.category] || '🚜';
       const imageHtml = eq.image_url
-        ? `<img src="${eq.image_url}" alt="${eq.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='${icon}'"/>`
+        ? `<img src="${safeText(eq.image_url)}" alt="${safeText(eq.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='${icon}'"/>`
         : icon;
       document.title = `${eq.name} - KrishiYantra`;
       document.getElementById('detailContent').innerHTML = `
@@ -125,7 +189,7 @@
             <h1 class="detail-name" style="margin-top:10px">${eq.name}</h1>
             <div class="detail-meta">
               <span><i class="fa-solid fa-location-dot"></i> ${eq.location}</span>
-              <span><i class="fa-solid fa-circle" style="color:${eq.available!==false?'#22c55e':'#ef4444'};font-size:0.6rem"></i> ${eq.available!==false?'Available':'Unavailable'}</span>
+              <span><i class="fa-solid fa-circle" style="color:${isAvailable?'#22c55e':'#ef4444'};font-size:0.6rem"></i> ${isAvailable?'Available':'Unavailable'}</span>
             </div>
             <div class="detail-price">₹${eq.price_per_day}<small>/day</small></div>
             <p class="detail-desc">${eq.description || 'Quality farm equipment available for rent.'}</p>
@@ -140,34 +204,92 @@
         </div>
         <div class="booking-form">
           <h3><i class="fa-solid fa-calendar-check"></i> Book This Equipment</h3>
+          ${isAvailable ? '' : '<div class="alert alert-warning">This equipment is already booked and currently unavailable. We are showing nearby alternatives from other owners below.</div>'}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div class="form-group">
               <label>Start Date</label>
-              <input type="date" id="startDate" min="${new Date().toISOString().split('T')[0]}" onchange="calcTotal(${eq.price_per_day})"/>
+              <input type="date" id="startDate" min="${new Date().toISOString().split('T')[0]}" onchange="calcTotal(${eq.price_per_day})" ${isAvailable ? '' : 'disabled'}/>
             </div>
             <div class="form-group">
               <label>End Date</label>
-              <input type="date" id="endDate" min="${new Date().toISOString().split('T')[0]}" onchange="calcTotal(${eq.price_per_day})"/>
+              <input type="date" id="endDate" min="${new Date().toISOString().split('T')[0]}" onchange="calcTotal(${eq.price_per_day})" ${isAvailable ? '' : 'disabled'}/>
             </div>
           </div>
           <div class="form-group">
             <label>Delivery Address</label>
-            <input type="text" id="deliveryAddress" placeholder="Your field / village address"/>
+            <input type="text" id="deliveryAddress" placeholder="Your field / village address" ${isAvailable ? '' : 'disabled'}/>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+              <button type="button" class="btn-map-bold" onclick="openBookingLocationInMaps('${eq.location || ''}')" ${isAvailable ? '' : 'disabled'}>
+                <i class="fa-solid fa-map-location-dot"></i> View On Google Maps
+              </button>
+            </div>
           </div>
           <div class="form-group">
             <label>Special Requests (optional)</label>
-            <textarea id="notes" placeholder="Any special requirements..."></textarea>
+            <textarea id="notes" placeholder="Any special requirements..." ${isAvailable ? '' : 'disabled'}></textarea>
           </div>
           <div class="booking-summary" id="bookingSummary" style="display:none">
             <div class="summary-row"><span>Price per day</span><span>₹${eq.price_per_day}</span></div>
             <div class="summary-row"><span>Number of days</span><span id="numDays">-</span></div>
             <div class="summary-row summary-total"><span>Total Amount</span><span id="totalAmt">-</span></div>
           </div>
-          <button id="bookBtn" class="btn-green" style="width:100%;justify-content:center;padding:13px;" onclick="bookEquipment('${eq._id}',${eq.price_per_day})">
-            <i class="fa-solid fa-check-circle"></i> Confirm Booking
+          <button id="bookBtn" class="btn-green" style="width:100%;justify-content:center;padding:13px;" onclick="bookEquipment('${eq._id}',${eq.price_per_day})" ${isAvailable ? '' : 'disabled'}>
+            <i class="fa-solid fa-check-circle"></i> ${isAvailable ? 'Confirm Booking' : 'Already Booked'}
           </button>
         </div>
+        <div id="alternativesWrap"></div>
       `;
+
+      if (!isAvailable) {
+        loadAlternatives(eq);
+      }
+    }
+
+    async function loadAlternatives(eq) {
+      const altWrap = document.getElementById('alternativesWrap');
+      if (!altWrap) return;
+
+      altWrap.innerHTML = '<div class="alt-wrap"><div class="alt-title"><i class="fa-solid fa-location-dot"></i> Looking for nearby alternatives...</div></div>';
+
+      try {
+        const res = await apiCall('GET', `/equipment/${eq._id}/alternatives?limit=6`);
+        const alternatives = res.alternatives || [];
+
+        if (!alternatives.length) {
+          altWrap.innerHTML = `
+            <div class="alt-wrap">
+              <div class="alt-title"><i class="fa-solid fa-circle-info"></i> No nearby alternatives found</div>
+              <div class="alt-meta">Try changing location on the equipment page to discover more tractors from other owners.</div>
+            </div>
+          `;
+          return;
+        }
+
+        altWrap.innerHTML = `
+          <div class="alt-wrap">
+            <div class="alt-title"><i class="fa-solid fa-tractor"></i> Nearby ${safeText(eq.category)} options from other owners</div>
+            <div class="alt-grid">
+              ${alternatives.map((item) => `
+                <div class="alt-card">
+                  <div class="alt-name">${safeText(item.name)}</div>
+                  <div class="alt-meta"><i class="fa-solid fa-location-dot"></i> ${safeText(item.location)} | Owner: ${safeText(item.owner_name || 'Equipment Owner')}</div>
+                  <div class="alt-price">₹${item.price_per_day}/day</div>
+                  <a class="btn-outline" style="display:inline-flex" href="equipment-detail.html?id=${item._id}">
+                    <i class="fa-solid fa-arrow-right"></i> View This Equipment
+                  </a>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } catch (_) {
+        altWrap.innerHTML = `
+          <div class="alt-wrap">
+            <div class="alt-title"><i class="fa-solid fa-circle-exclamation"></i> Could not load alternatives right now</div>
+            <div class="alt-meta">Please try again in a moment.</div>
+          </div>
+        `;
+      }
     }
 
     function calcTotal(pricePerDay) {
@@ -179,6 +301,20 @@
       document.getElementById('numDays').textContent = days;
       document.getElementById('totalAmt').textContent = `₹${days * pricePerDay}`;
       document.getElementById('bookingSummary').style.display = 'block';
+    }
+
+    function openBookingLocationInMaps(defaultLocation) {
+      const deliveryInput = document.getElementById('deliveryAddress');
+      const typedLocation = deliveryInput ? String(deliveryInput.value || '').trim() : '';
+      const targetLocation = typedLocation || String(defaultLocation || '').trim();
+
+      if (!targetLocation) {
+        showAlert('alertBox', 'Please enter delivery address first to open it on Google Maps.', 'error');
+        return;
+      }
+
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(targetLocation)}`;
+      window.open(mapsUrl, '_blank', 'noopener,noreferrer');
     }
 
     async function bookEquipment(eqId, price) {
@@ -275,6 +411,14 @@
           bookBtn.disabled = false;
           bookBtn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Confirm Booking';
         }
+        if ((e.message || '').toLowerCase().includes('currently unavailable')) {
+          showAlert('alertBox', 'This equipment became unavailable. Showing nearby alternatives from other owners.', 'error');
+          if (currentEquipment) {
+            currentEquipment.available = false;
+            loadAlternatives(currentEquipment);
+          }
+          return;
+        }
         if ((e.message || '').toLowerCase().includes('authentication required') || (e.message || '').toLowerCase().includes('unauthorized')) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -289,6 +433,7 @@
     }
 
     loadDetail();
+    startDetailRefresh();
   </script>
 </body>
 </html>

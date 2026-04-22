@@ -34,6 +34,21 @@
 
     .no-results { text-align: center; padding: 60px 20px; color: var(--gray-400); }
     .no-results i { font-size: 3rem; margin-bottom: 16px; display: block; }
+
+    .fallback-wrap {
+      margin-top: 28px;
+      border: 1px solid #f3e7bd;
+      background: #fffdf4;
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .fallback-wrap h3 {
+      color: #7c4a03;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+      font-family: 'Playfair Display', serif;
+    }
+    .fallback-note { color: #7b6b42; font-size: 0.86rem; margin-bottom: 14px; }
   </style>
 </head>
 <body>
@@ -96,12 +111,14 @@
         <option value="newest">Newest First</option>
         <option value="price_asc">Price: Low to High</option>
         <option value="price_desc">Price: High to Low</option>
+        <option value="distance">Nearest to Me</option>
       </select>
     </div>
 
     <div class="equipment-grid" id="equipmentGrid">
       <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading equipment...</div>
     </div>
+    <div id="fallbackAlternatives"></div>
   </div>
 
   <footer class="footer">
@@ -119,9 +136,85 @@
     if (urlParams.get('location')) document.getElementById('locFilter').value = urlParams.get('location');
     if (urlParams.get('cat')) document.getElementById('catFilter').value = urlParams.get('cat');
 
+    let userCoords = null;
+    let equipmentRefreshTimer = null;
+    const EQUIPMENT_REFRESH_INTERVAL = 8000; // 8 seconds
+
+    function startEquipmentRefresh() {
+      if (equipmentRefreshTimer) clearInterval(equipmentRefreshTimer);
+      equipmentRefreshTimer = setInterval(() => {
+        if (document.hidden) return; // Pause if tab is not visible
+        loadEquipment();
+      }, EQUIPMENT_REFRESH_INTERVAL);
+    }
+
+    function stopEquipmentRefresh() {
+      if (equipmentRefreshTimer) {
+        clearInterval(equipmentRefreshTimer);
+        equipmentRefreshTimer = null;
+      }
+    }
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopEquipmentRefresh();
+      else startEquipmentRefresh();
+    });
+
+    function tryGetBrowserCoords() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              lat: Number(position.coords.latitude.toFixed(6)),
+              lng: Number(position.coords.longitude.toFixed(6))
+            });
+          },
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      });
+    }
+
+    async function loadAlternativesWhenEmpty(filters, coords) {
+      const altBox = document.getElementById('fallbackAlternatives');
+      altBox.innerHTML = '<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Finding nearby alternatives...</div>';
+
+      const altParams = new URLSearchParams();
+      if (filters.search) altParams.append('search', filters.search);
+      if (filters.category) altParams.append('category', filters.category);
+      if (filters.location) altParams.append('location', filters.location);
+      if (filters.max_price) altParams.append('max_price', filters.max_price);
+      if (coords && typeof coords.lat === 'number' && typeof coords.lng === 'number') {
+        altParams.append('lat', String(coords.lat));
+        altParams.append('lng', String(coords.lng));
+      }
+
+      try {
+        const res = await apiCall('GET', `/equipment/alternatives?${altParams.toString()}`);
+        const alternatives = res.alternatives || [];
+        if (!alternatives.length) {
+          altBox.innerHTML = '';
+          return;
+        }
+        altBox.innerHTML = `
+          <div class="fallback-wrap">
+            <h3><i class="fa-solid fa-lightbulb"></i> No exact match found. Here are nearby alternatives.</h3>
+            <p class="fallback-note">These suggestions come from other owners near your selected location and are sorted by distance where coordinates are available.</p>
+            <div class="equipment-grid">${alternatives.map(renderEquipmentCard).join('')}</div>
+          </div>
+        `;
+      } catch (_) {
+        altBox.innerHTML = '';
+      }
+    }
+
     async function loadEquipment() {
       const grid = document.getElementById('equipmentGrid');
       const count = document.getElementById('resultsCount');
+      const altBox = document.getElementById('fallbackAlternatives');
+      altBox.innerHTML = '';
       grid.innerHTML = '<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
 
       const params = new URLSearchParams();
@@ -131,11 +224,19 @@
       const price = document.getElementById('priceFilter').value;
       const sort = document.getElementById('sortSelect').value;
 
+      if (!userCoords) {
+        userCoords = await tryGetBrowserCoords();
+      }
+
       if (search) params.append('search', search);
       if (cat) params.append('category', cat);
       if (loc) params.append('location', loc);
       if (price) params.append('max_price', price);
       params.append('sort', sort);
+      if (userCoords && typeof userCoords.lat === 'number' && typeof userCoords.lng === 'number') {
+        params.append('lat', String(userCoords.lat));
+        params.append('lng', String(userCoords.lng));
+      }
 
       try {
         const res = await apiCall('GET', `/equipment/?${params}`);
@@ -143,11 +244,18 @@
         count.textContent = `${equipment.length} equipment found`;
         if (equipment.length === 0) {
           grid.innerHTML = `<div class="no-results"><i class="fa-solid fa-magnifying-glass"></i>No equipment found. Try different filters.</div>`;
+          await loadAlternativesWhenEmpty({
+            search,
+            category: cat,
+            location: loc,
+            max_price: price
+          }, userCoords);
         } else {
           grid.innerHTML = equipment.map(renderEquipmentCard).join('');
         }
       } catch (e) {
         count.textContent = '0 equipment found';
+        altBox.innerHTML = '';
         grid.innerHTML = `<div class="no-results"><i class="fa-solid fa-plug-circle-xmark"></i>${e.message || 'Unable to connect to backend. Please start the API server.'}</div>`;
       }
     }
@@ -159,6 +267,7 @@
     }
 
     loadEquipment();
+    startEquipmentRefresh();
   </script>
 </body>
 </html>
