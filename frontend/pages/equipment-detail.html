@@ -115,6 +115,12 @@
     const equipId = urlParams.get('id');
     let currentEquipment = null;
     let detailRefreshTimer = null;
+    let bookingDraft = {
+      startDate: '',
+      endDate: '',
+      deliveryAddress: '',
+      notes: ''
+    };
     const DETAIL_REFRESH_INTERVAL = 6000; // 6 seconds
     const ICONS = { tractor:'🚜', harvester:'🌾', rotavator:'⚙️', sprayer:'💧', thresher:'🌿', plough:'🔧', seeder:'🌱', pump:'🪣' };
     const safeText = (value) => String(value || '').replace(/[&<>"']/g, (m) => {
@@ -129,6 +135,7 @@
       if (detailRefreshTimer) clearInterval(detailRefreshTimer);
       detailRefreshTimer = setInterval(() => {
         if (document.hidden) return; // Pause if tab is not visible
+        if (isEditingBookingForm()) return; // Do not interrupt active input
         loadDetail();
       }, DETAIL_REFRESH_INTERVAL);
     }
@@ -171,9 +178,63 @@
       }
     }
 
+    function captureBookingDraft() {
+      const startDate = document.getElementById('startDate');
+      const endDate = document.getElementById('endDate');
+      const deliveryAddress = document.getElementById('deliveryAddress');
+      const notes = document.getElementById('notes');
+      if (!startDate || !endDate || !deliveryAddress || !notes) return;
+
+      bookingDraft = {
+        startDate: startDate.value || '',
+        endDate: endDate.value || '',
+        deliveryAddress: deliveryAddress.value || '',
+        notes: notes.value || ''
+      };
+    }
+
+    function restoreBookingDraft(pricePerDay, isAvailable) {
+      if (!isAvailable) return;
+
+      const startDate = document.getElementById('startDate');
+      const endDate = document.getElementById('endDate');
+      const deliveryAddress = document.getElementById('deliveryAddress');
+      const notes = document.getElementById('notes');
+      if (!startDate || !endDate || !deliveryAddress || !notes) return;
+
+      if (bookingDraft.startDate) startDate.value = bookingDraft.startDate;
+      if (bookingDraft.endDate) endDate.value = bookingDraft.endDate;
+      if (bookingDraft.deliveryAddress) deliveryAddress.value = bookingDraft.deliveryAddress;
+      if (bookingDraft.notes) notes.value = bookingDraft.notes;
+
+      if (startDate.value && endDate.value) {
+        calcTotal(pricePerDay);
+      }
+    }
+
+    function wireBookingDraftListeners() {
+      const ids = ['startDate', 'endDate', 'deliveryAddress', 'notes'];
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', captureBookingDraft);
+        el.addEventListener('change', captureBookingDraft);
+      });
+    }
+
+    function isEditingBookingForm() {
+      const active = document.activeElement;
+      if (!active) return false;
+      return active.id === 'startDate' || active.id === 'endDate' || active.id === 'deliveryAddress' || active.id === 'notes';
+    }
+
     function renderDetail(eq) {
+      captureBookingDraft();
       currentEquipment = eq;
       const isAvailable = eq.available !== false;
+      const user = getUser();
+      const role = user && user.role ? String(user.role).toLowerCase() : '';
+      const canViewAvailabilityStatus = isLoggedIn() && (role === 'farmer' || role === 'renter');
       const icon = ICONS[eq.category] || '🚜';
       const imageHtml = eq.image_url
         ? `<img src="${safeText(eq.image_url)}" alt="${safeText(eq.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='${icon}'"/>`
@@ -189,7 +250,7 @@
             <h1 class="detail-name" style="margin-top:10px">${eq.name}</h1>
             <div class="detail-meta">
               <span><i class="fa-solid fa-location-dot"></i> ${eq.location}</span>
-              <span><i class="fa-solid fa-circle" style="color:${isAvailable?'#22c55e':'#ef4444'};font-size:0.6rem"></i> ${isAvailable?'Available':'Unavailable'}</span>
+              ${canViewAvailabilityStatus ? `<span><i class="fa-solid fa-circle" style="color:${isAvailable?'#22c55e':'#ef4444'};font-size:0.6rem"></i> ${isAvailable?'Available':'Unavailable'}</span>` : ''}
             </div>
             <div class="detail-price">₹${eq.price_per_day}<small>/day</small></div>
             <p class="detail-desc">${eq.description || 'Quality farm equipment available for rent.'}</p>
@@ -204,7 +265,7 @@
         </div>
         <div class="booking-form">
           <h3><i class="fa-solid fa-calendar-check"></i> Book This Equipment</h3>
-          ${isAvailable ? '' : '<div class="alert alert-warning">This equipment is already booked and currently unavailable. We are showing nearby alternatives from other owners below.</div>'}
+          ${canViewAvailabilityStatus && !isAvailable ? '<div class="alert alert-warning">This equipment is already booked and currently unavailable. We are showing nearby alternatives from other owners below.</div>' : ''}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div class="form-group">
               <label>Start Date</label>
@@ -239,6 +300,9 @@
         </div>
         <div id="alternativesWrap"></div>
       `;
+
+      restoreBookingDraft(eq.price_per_day, isAvailable);
+      wireBookingDraftListeners();
 
       if (!isAvailable) {
         loadAlternatives(eq);
@@ -379,6 +443,7 @@
               };
               const verifyRes = await apiCall('POST', '/rentals/payment/verify', verifyPayload, true);
               if (verifyRes.rental) {
+                bookingDraft = { startDate: '', endDate: '', deliveryAddress: '', notes: '' };
                 showAlert('alertBox', 'Payment successful. Booking request sent to owner for confirmation.', 'success');
                 setTimeout(() => window.location.href = 'my-rentals.html', 1800);
               } else {

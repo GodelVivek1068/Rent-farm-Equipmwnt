@@ -26,6 +26,13 @@ function getUser() {
   return u ? JSON.parse(u) : null;
 }
 function isLoggedIn() { return !!getToken(); }
+function isFarmerLoggedIn() {
+  if (!isLoggedIn()) return false;
+  const user = getUser();
+  if (!user || !user.role) return false;
+  const role = String(user.role).toLowerCase();
+  return role === 'farmer' || role === 'renter';
+}
 function logout() {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
@@ -195,9 +202,13 @@ function renderEquipmentCard(eq) {
   const distanceHtml = typeof eq.distance_km === 'number'
     ? `<span><i class="fa-solid fa-route"></i> ${eq.distance_km.toFixed(1)} km</span>`
     : '';
+  const canViewAvailabilityStatus = isFarmerLoggedIn();
   const availabilityHtml = isAvailable
     ? '<span class="badge badge-green">Available</span>'
     : '<span class="badge badge-red">Unavailable</span>';
+  const ctaLabel = canViewAvailabilityStatus
+    ? (isAvailable ? 'View & Book' : 'View Details')
+    : 'View Details';
   return `
     <div class="equipment-card" onclick="window.location.href='/pages/equipment-detail.html?id=${eq._id}'">
       <div class="card-img">${imageHtml}</div>
@@ -207,12 +218,12 @@ function renderEquipmentCard(eq) {
           <span><i class="fa-solid fa-location-dot"></i> ${eq.location}</span>
           ${distanceHtml}
           <span class="badge badge-green">${eq.category}</span>
-          ${availabilityHtml}
+          ${canViewAvailabilityStatus ? availabilityHtml : ''}
         </div>
-        ${isAvailable ? '' : '<div class="card-unavailable-note">Already booked. You can view details for alternatives.</div>'}
+        ${canViewAvailabilityStatus && !isAvailable ? '<div class="card-unavailable-note">Already booked. You can view details for alternatives.</div>' : ''}
         <div class="card-price">₹${eq.price_per_day}<span>/day</span></div>
         <button class="btn-green" style="width:100%" onclick="event.stopPropagation();window.location.href='/pages/equipment-detail.html?id=${eq._id}'">
-          <i class="fa-solid fa-calendar-check"></i> ${isAvailable ? 'View & Book' : 'View Details'}
+          <i class="fa-solid fa-calendar-check"></i> ${ctaLabel}
         </button>
       </div>
     </div>

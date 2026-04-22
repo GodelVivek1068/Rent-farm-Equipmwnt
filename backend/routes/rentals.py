@@ -31,10 +31,47 @@ def _equipment_id_variants(equipment_id):
     return variants
 
 
+def _expire_overdue_rentals_for_equipment(equipment_id):
+    equipment_id_variants = _equipment_id_variants(equipment_id)
+    if not equipment_id_variants:
+        return 0
+
+    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    base_query = {
+        'equipment_id': {'$in': equipment_id_variants},
+        'status': {'$in': list(ACTIVE_RENTAL_STATUSES)},
+        'end_date': {'$lt': today}
+    }
+
+    confirm_to_complete = mongo.db.rentals.update_many(
+        {**base_query, 'status': 'confirmed'},
+        {
+            '$set': {
+                'status': 'completed',
+                'auto_completed_at': datetime.datetime.utcnow()
+            }
+        }
+    )
+    pending_to_cancel = mongo.db.rentals.update_many(
+        {**base_query, 'status': 'pending'},
+        {
+            '$set': {
+                'status': 'cancelled',
+                'cancel_reason': 'Booking auto-cancelled after rental end date passed',
+                'cancelled_at': datetime.datetime.utcnow()
+            }
+        }
+    )
+
+    return (confirm_to_complete.modified_count or 0) + (pending_to_cancel.modified_count or 0)
+
+
 def _sync_equipment_availability(equipment_id):
     equipment_id_variants = _equipment_id_variants(equipment_id)
     if not equipment_id_variants:
         return
+
+    _expire_overdue_rentals_for_equipment(equipment_id)
 
     equipment_object_id = None
     for value in equipment_id_variants:
@@ -100,6 +137,10 @@ def _get_equipment_for_booking(equipment_id, user_id):
     eq = mongo.db.equipment.find_one({'_id': ObjectId(equipment_id)})
     if not eq:
         return None, 'Equipment not found', 404
+
+    _sync_equipment_availability(eq['_id'])
+    eq = mongo.db.equipment.find_one({'_id': eq['_id']}) or eq
+
     if str(eq.get('owner_id')) == str(user_id):
         return None, 'You cannot rent your own equipment', 400
     if eq.get('available', True) is False:
@@ -141,8 +182,42 @@ def _owner_equipment_ids(user_id):
         ]
     }
     for equipment in mongo.db.equipment.find(equipment_query, {'_id': 1}):
-        equipment_ids.append(equipment['_id'])
-    return equipment_ids
+        eq_id = equipment.get('_id')
+        if not eq_id:
+            continue
+        equipment_ids.extend(_equipment_id_variants(eq_id))
+
+    # Preserve order while removing duplicates.
+    unique_ids = []
+    seen = set()
+    for value in equipment_ids:
+        key = (type(value).__name__, str(value))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_ids.append(value)
+    return unique_ids
+
+
+def _rental_belongs_to_owner(rental, user_id, owner_equipment_id_strs):
+    user_id_str = str(user_id)
+
+    rental_owner_id = rental.get('owner_id')
+    rental_owner_id_str = rental.get('owner_id_str')
+    if str(rental_owner_id) == user_id_str:
+        return True
+    if str(rental_owner_id_str) == user_id_str:
+        return True
+
+    rental_equipment_id = rental.get('equipment_id')
+    if str(rental_equipment_id) in owner_equipment_id_strs:
+        return True
+
+    rental_equipment_id_str = rental.get('equipment_id_str')
+    if str(rental_equipment_id_str) in owner_equipment_id_strs:
+        return True
+
+    return False
 
 
 @rentals_bp.route('/', methods=['POST'])
@@ -283,20 +358,15 @@ def my_rentals():
 def owner_rentals():
     """Rentals for equipment owned by this user"""
     user = get_current_user()
-    user_id_str = str(user['_id'])
     owner_equipment_ids = _owner_equipment_ids(user['_id'])
+    owner_equipment_id_strs = {str(value) for value in owner_equipment_ids}
 
-    query = {
-        '$or': [
-            {'owner_id': user['_id']},
-            {'owner_id': user_id_str},
-            {'owner_id_str': user_id_str}
-        ]
-    }
-    if owner_equipment_ids:
-        query['$or'].append({'equipment_id': {'$in': owner_equipment_ids}})
+    # Fetch then filter to tolerate legacy ObjectId/string field mismatches.
+    rentals = []
+    for rental in mongo.db.rentals.find().sort('created_at', -1):
+        if _rental_belongs_to_owner(rental, user['_id'], owner_equipment_id_strs):
+            rentals.append(rental)
 
-    rentals = list(mongo.db.rentals.find(query).sort('created_at', -1))
     return jsonify({'rentals': [rental_to_dict(r) for r in rentals]})
 
 

@@ -100,19 +100,61 @@ def _haversine_km(lat1, lng1, lat2, lng2):
     return round(r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
 
-def _equipment_has_active_booking(eq_id):
-    eq_variants = []
+def _equipment_id_variants(eq_id):
     if isinstance(eq_id, ObjectId):
-        eq_variants = [eq_id, str(eq_id)]
-    else:
-        eq_id_str = str(eq_id or '').strip()
-        if not eq_id_str:
-            return False
-        eq_variants.append(eq_id_str)
-        try:
-            eq_variants.append(ObjectId(eq_id_str))
-        except Exception:
-            pass
+        return [eq_id, str(eq_id)]
+
+    eq_id_str = str(eq_id or '').strip()
+    if not eq_id_str:
+        return []
+
+    variants = [eq_id_str]
+    try:
+        variants.append(ObjectId(eq_id_str))
+    except Exception:
+        pass
+    return variants
+
+
+def _expire_overdue_rentals_for_equipment(eq_id):
+    eq_variants = _equipment_id_variants(eq_id)
+    if not eq_variants:
+        return 0
+
+    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    base_query = {
+        'equipment_id': {'$in': eq_variants},
+        'status': {'$in': list(ACTIVE_RENTAL_STATUSES)},
+        'end_date': {'$lt': today}
+    }
+
+    confirm_to_complete = mongo.db.rentals.update_many(
+        {**base_query, 'status': 'confirmed'},
+        {
+            '$set': {
+                'status': 'completed',
+                'auto_completed_at': datetime.datetime.utcnow()
+            }
+        }
+    )
+    pending_to_cancel = mongo.db.rentals.update_many(
+        {**base_query, 'status': 'pending'},
+        {
+            '$set': {
+                'status': 'cancelled',
+                'cancel_reason': 'Booking auto-cancelled after rental end date passed',
+                'cancelled_at': datetime.datetime.utcnow()
+            }
+        }
+    )
+
+    return (confirm_to_complete.modified_count or 0) + (pending_to_cancel.modified_count or 0)
+
+
+def _equipment_has_active_booking(eq_id):
+    eq_variants = _equipment_id_variants(eq_id)
+    if not eq_variants:
+        return False
 
     return mongo.db.rentals.find_one({
         'equipment_id': {'$in': eq_variants},
@@ -120,6 +162,14 @@ def _equipment_has_active_booking(eq_id):
     }) is not None
 
 def eq_to_dict(eq):
+    expired_count = _expire_overdue_rentals_for_equipment(eq['_id'])
+    has_active_booking = _equipment_has_active_booking(eq['_id'])
+
+    # If we just cleared overdue active rentals, unblock stale availability flag.
+    if expired_count > 0 and not has_active_booking and eq.get('available', True) is False:
+        mongo.db.equipment.update_one({'_id': eq['_id']}, {'$set': {'available': True}})
+        eq['available'] = True
+
     lat, lng = _resolve_coordinates(
         eq.get('location', ''),
         eq.get('city', ''),
@@ -144,7 +194,7 @@ def eq_to_dict(eq):
         'owner_name': eq.get('owner_name', ''),
         'owner_phone': eq.get('owner_phone', ''),
         'owner_id': str(eq.get('owner_id', '')),
-        'available': bool(eq.get('available', True)) and not _equipment_has_active_booking(eq['_id']),
+        'available': bool(eq.get('available', True)) and not has_active_booking,
         'created_at': str(eq.get('created_at', ''))
     }
 
@@ -466,7 +516,14 @@ def create_equipment():
 @require_auth
 def my_equipment():
     user = get_current_user()
-    equipment = list(mongo.db.equipment.find({'owner_id': user['_id']}))
+    user_id_str = str(user['_id'])
+    equipment = list(mongo.db.equipment.find({
+        '$or': [
+            {'owner_id': user['_id']},
+            {'owner_id': user_id_str},
+            {'owner_id_str': user_id_str}
+        ]
+    }))
     return jsonify({'equipment': [eq_to_dict(e) for e in equipment]})
 
 

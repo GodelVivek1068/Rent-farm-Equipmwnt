@@ -152,6 +152,17 @@
       return 'pending';
     }
 
+    function isOngoingBooking(booking) {
+      const status = normalizeStatus(booking && booking.status);
+      if (status !== 'pending' && status !== 'confirmed') return false;
+
+      const endDate = String((booking && booking.end_date) || '').trim();
+      if (!endDate) return true;
+
+      const today = new Date().toISOString().split('T')[0];
+      return endDate >= today;
+    }
+
     function requireOwner() {
       const user = getUser();
       if (!isLoggedIn()) {
@@ -204,7 +215,7 @@
 
     function renderStats() {
       const pending = ownerBookings.filter((b) => normalizeStatus(b.status) === 'pending').length;
-      const active = ownerBookings.filter((b) => normalizeStatus(b.status) === 'confirmed').length;
+      const active = ownerBookings.filter((b) => isOngoingBooking(b)).length;
       const earnings = ownerBookings
         .filter((b) => {
           const status = normalizeStatus(b.status);
