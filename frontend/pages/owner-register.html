@@ -3,32 +3,37 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Register - KrishiYantra</title>
+  <title>Owner Register - KrishiYantra</title>
   <link rel="stylesheet" href="../css/main.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <style>
-    body { min-height: 100vh; background: linear-gradient(135deg, var(--green-dark) 0%, #2d6a4f 100%); display: flex; flex-direction: column; }
+    body { min-height: 100vh; background: linear-gradient(135deg, #183c2d 0%, #2d6a4f 100%); display: flex; flex-direction: column; }
     .auth-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 16px; }
     .auth-card {
       background: var(--white); border-radius: 20px; padding: 40px 36px;
-      width: 100%; max-width: 460px; box-shadow: var(--shadow-lg);
+      width: 100%; max-width: 480px; box-shadow: var(--shadow-lg);
     }
-    .auth-logo { text-align: center; margin-bottom: 28px; }
+    .auth-logo { text-align: center; margin-bottom: 24px; }
     .auth-logo i { font-size: 2rem; color: var(--amber); }
     .auth-logo h2 { font-family: 'Playfair Display', serif; color: var(--green-dark); margin-top: 8px; font-size: 1.5rem; }
+    .auth-note {
+      background: #fff8e2;
+      border: 1px solid #f5df95;
+      border-radius: var(--radius-sm);
+      color: #6b4b07;
+      font-size: 0.85rem;
+      padding: 10px;
+      margin-bottom: 14px;
+    }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .btn-submit { width: 100%; padding: 13px; font-size: 1rem; justify-content: center; border-radius: var(--radius-sm); }
     .auth-switch { text-align: center; margin-top: 20px; font-size: 0.88rem; color: var(--gray-600); }
     .auth-switch a { color: var(--green-mid); font-weight: 600; }
-    .btn-submit { width: 100%; padding: 13px; font-size: 1rem; justify-content: center; border-radius: var(--radius-sm); }
-    .role-toggle { display: flex; gap: 10px; margin-bottom: 18px; }
-    .role-btn {
-      flex: 1; padding: 10px; border: 1.5px solid var(--gray-200);
-      border-radius: var(--radius-sm); background: var(--white); cursor: pointer;
-      font-family: inherit; font-size: 0.88rem; font-weight: 600; color: var(--gray-600);
-      transition: var(--transition); text-align: center;
+    @media(max-width:640px) {
+      .two-col { grid-template-columns: 1fr; }
+      .auth-card { padding: 30px 22px; }
     }
-    .role-btn.active { border-color: var(--green-mid); background: var(--green-pale); color: var(--green-dark); }
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   </style>
 </head>
 <body>
@@ -37,6 +42,7 @@
     <ul class="nav-links"><li><a href="../index.html">Home</a></li><li><a href="equipment.html">Equipment</a></li></ul>
     <div class="nav-auth">
       <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Farmer Register</a>
     </div>
     <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
   </nav>
@@ -44,16 +50,15 @@
   <div class="auth-wrapper">
     <div class="auth-card">
       <div class="auth-logo">
-        <i class="fa-solid fa-tractor"></i>
-        <h2>Create Account</h2>
-        <p>Join thousands of farmers on KrishiYantra</p>
+        <i class="fa-solid fa-store"></i>
+        <h2>Register As Equipment Owner</h2>
+        <p>Create your owner account, then complete KYC.</p>
       </div>
       <div id="alertBox"></div>
-
-      <label style="font-size:0.85rem;font-weight:600;color:var(--gray-600);display:block;margin-bottom:8px;">I want to:</label>
-      <div class="role-toggle">
-        <button class="role-btn active" id="roleRenter" onclick="setRole('renter')">🌾 Rent Equipment</button>
-        <button class="role-btn" id="roleOwner" onclick="setRole('owner')">🚜 List My Equipment</button>
+      <div class="auth-note">
+        Step 1: Owner registration<br/>
+        Step 2: KYC verification form<br/>
+        Step 3: Your owner dashboard
       </div>
 
       <div class="two-col">
@@ -68,7 +73,7 @@
       </div>
       <div class="form-group">
         <label>Email Address</label>
-        <input type="email" id="email" placeholder="your@email.com"/>
+        <input type="email" id="email" placeholder="owner@email.com"/>
       </div>
       <div class="form-group">
         <label>Phone Number</label>
@@ -82,28 +87,27 @@
         <label>Password</label>
         <input type="password" id="password" placeholder="Min 6 characters"/>
       </div>
-      <button class="btn-green btn-submit" onclick="doRegister()">
-        <i class="fa-solid fa-user-plus"></i> Create Account
+      <button class="btn-green btn-submit" onclick="doOwnerRegister()">
+        <i class="fa-solid fa-user-plus"></i> Register Owner Account
       </button>
       <div class="auth-switch">
-        Already have an account? <a href="login.html">Login here</a>
-        <br/>Equipment owner? <a href="owner-register.html">Register as owner</a>
+        Already have owner account? <a href="login.html">Login here</a>
       </div>
     </div>
   </div>
 
   <script src="../js/main.js"></script>
   <script>
-    if (isLoggedIn()) window.location.href = '../index.html';
-    let selectedRole = 'renter';
-
-    function setRole(role) {
-      selectedRole = role;
-      document.getElementById('roleRenter').classList.toggle('active', role === 'renter');
-      document.getElementById('roleOwner').classList.toggle('active', role === 'owner');
+    if (isLoggedIn()) {
+      const user = getUser() || {};
+      if (String(user.role || '').toLowerCase() === 'owner') {
+        window.location.href = 'owner-kyc.html';
+      } else {
+        window.location.href = '../index.html';
+      }
     }
 
-    async function doRegister() {
+    async function doOwnerRegister() {
       const firstName = document.getElementById('firstName').value.trim();
       const lastName = document.getElementById('lastName').value.trim();
       const email = document.getElementById('email').value.trim();
@@ -112,32 +116,35 @@
       const password = document.getElementById('password').value;
 
       if (!firstName || !lastName || !email || !phone || !location || !password) {
-        showAlert('alertBox', 'Please fill all fields', 'error'); return;
+        showAlert('alertBox', 'Please fill all fields', 'error');
+        return;
       }
       if (password.length < 6) {
-        showAlert('alertBox', 'Password must be at least 6 characters', 'error'); return;
+        showAlert('alertBox', 'Password must be at least 6 characters', 'error');
+        return;
       }
 
       try {
         const res = await apiCall('POST', '/auth/register', {
-          name: `${firstName} ${lastName}`, email, phone, location, password, role: selectedRole
+          name: `${firstName} ${lastName}`,
+          email,
+          phone,
+          location,
+          password,
+          role: 'owner'
         });
+
         if (res.token) {
           localStorage.setItem('token', res.token);
           localStorage.setItem('user', JSON.stringify(res.user));
-          if (selectedRole === 'owner') {
-            showAlert('alertBox', '✅ Owner account created. Redirecting to KYC page...', 'success');
-            setTimeout(() => window.location.href = 'owner-kyc.html', 1400);
-          } else {
-            showAlert('alertBox', '✅ Account created! Redirecting...', 'success');
-            setTimeout(() => window.location.href = '../index.html', 1500);
-          }
-        } else {
-          showAlert('alertBox', res.error || 'Registration failed', 'error');
+          showAlert('alertBox', 'Owner registered. Redirecting to KYC...', 'success');
+          setTimeout(() => window.location.href = 'owner-kyc.html', 1200);
+          return;
         }
-      } catch(e) {
-        const message = e && e.message ? e.message : 'Cannot connect to server. Please start the backend.';
-        showAlert('alertBox', message, 'error');
+
+        showAlert('alertBox', res.error || 'Registration failed', 'error');
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Cannot connect to backend server.', 'error');
       }
     }
   </script>

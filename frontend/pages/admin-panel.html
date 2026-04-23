@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .hero {
+      background: linear-gradient(130deg, #102a43 0%, #1f5f8b 50%, #2c7da0 100%);
+      color: #fff;
+      padding: 38px 24px 30px;
+    }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+    .hero p { color: rgba(255,255,255,0.82); }
+
+    .admin-wrap { max-width: 1200px; margin: 26px auto; padding: 0 24px; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      padding: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-label { color: var(--gray-600); font-size: 0.8rem; }
+    .stat-value { font-size: 1.35rem; color: #0f3a56; font-weight: 800; margin-top: 4px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .panel {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+    }
+    .panel h3 {
+      margin-bottom: 12px;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.15rem;
+      color: #0f3a56;
+    }
+
+    .row-card {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .row-title { font-weight: 700; color: #0f3a56; }
+    .row-meta { font-size: 0.82rem; color: var(--gray-600); margin-top: 4px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+    .commission-box {
+      border: 1px dashed #93c5fd;
+      border-radius: var(--radius-sm);
+      background: #f5f9ff;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .empty { color: var(--gray-400); text-align: center; padding: 16px; }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: #fff;
+      background: #dc2626;
+      margin-left: 8px;
+      box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45);
+      animation: pulseBadge 1.8s infinite;
+    }
+
+    @keyframes pulseBadge {
+      0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+      70% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+
+    .live-badge.hidden {
+      display: none;
+    }
+
+    @media(max-width:980px) {
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="equipment.html">Equipment</a></li>
+      <li><a href="owner-dashboard.html">Owner Dashboard</a></li>
+      <li><a href="admin-panel.html" class="active">Admin Panel</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="register.html" class="btn-primary">Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="hero">
+    <h1>Marketplace Admin Panel</h1>
+    <p>Approve owner KYC, configure platform commission, and resolve disputes.</p>
+  </div>
+
+  <div class="admin-wrap">
+    <div id="alertBox"></div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-label">Pending KYC</div><div class="stat-value">-</div></div>
+      <div class="stat-card"><div class="stat-label">Approved Owners</div><div class="stat-value">-</div></div>
+      <div class="stat-card"><div class="stat-label">Open Disputes</div><div class="stat-value">-</div></div>
+      <div class="stat-card"><div class="stat-label">Total Commission</div><div class="stat-value">-</div></div>
+      <div class="stat-card"><div class="stat-label">Owner Payout</div><div class="stat-value">-</div></div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h3><i class="fa-solid fa-user-check"></i> Owner KYC Approvals <span id="pendingKycBadge" class="live-badge hidden">0</span></h3>
+        <div id="kycList"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>
+      </section>
+
+      <section class="panel">
+        <h3><i class="fa-solid fa-percent"></i> Commission Settings</h3>
+        <div class="commission-box" id="commissionInfo"></div>
+        <div class="form-group">
+          <label>Default Commission Percent</label>
+          <input type="number" id="commissionInput" min="0" max="100" step="0.1"/>
+        </div>
+        <button class="btn-green" onclick="saveCommission()"><i class="fa-solid fa-floppy-disk"></i> Save Commission</button>
+
+        <h3 style="margin-top:18px;"><i class="fa-solid fa-scale-balanced"></i> Disputes</h3>
+        <div id="disputeList"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="../js/main.js"></script>
+  <script>
+    let lastPendingKycCount = null;
+    let kycPollTimer = null;
+    let kycAudioContext = null;
+
+    function requireAdmin() {
+      const user = getUser();
+      if (!isLoggedIn()) {
+        window.location.href = 'admin-login.html?redirect=admin-panel.html';
+        return false;
+      }
+      if (!user || String(user.role || '').toLowerCase() !== 'admin') {
+        showAlert('alertBox', 'Admin account required to access this page.', 'error');
+        setTimeout(() => window.location.href = 'admin-login.html?redirect=admin-panel.html', 900);
+        return false;
+      }
+      return true;
+    }
+
+    function initKycAudio() {
+      if (kycAudioContext) return;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      try {
+        kycAudioContext = new AudioContextClass();
+      } catch (_) {
+        kycAudioContext = null;
+      }
+    }
+
+    function playKycSoundNotification() {
+      initKycAudio();
+      if (!kycAudioContext) return;
+
+      const scheduleBeep = (startAt, frequency, duration) => {
+        const osc = kycAudioContext.createOscillator();
+        const gain = kycAudioContext.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.value = frequency;
+        gain.gain.value = 0;
+
+        osc.connect(gain);
+        gain.connect(kycAudioContext.destination);
+
+        gain.gain.setValueAtTime(0, startAt);
+        gain.gain.linearRampToValueAtTime(0.06, startAt + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+
+        osc.start(startAt);
+        osc.stop(startAt + duration + 0.02);
+      };
+
+      const now = kycAudioContext.currentTime;
+      const play = () => {
+        scheduleBeep(now + 0.01, 880, 0.12);
+        scheduleBeep(now + 0.19, 988, 0.12);
+      };
+
+      if (kycAudioContext.state === 'suspended') {
+        kycAudioContext.resume().then(play).catch(() => {});
+      } else {
+        play();
+      }
+    }
+
+    async function initAdmin() {
+      if (!requireAdmin()) return;
+      await Promise.all([loadDashboard(), loadKyc(), loadCommission(), loadDisputes()]);
+      startKycRealtimePolling();
+    }
+
+    function updatePendingKycBadge(count) {
+      const badge = document.getElementById('pendingKycBadge');
+      if (!badge) return;
+
+      const normalized = Number(count || 0);
+      if (normalized <= 0) {
+        badge.classList.add('hidden');
+        badge.textContent = '0';
+        document.title = 'Admin Panel - KrishiYantra';
+        return;
+      }
+
+      badge.classList.remove('hidden');
+      badge.textContent = normalized > 99 ? '99+' : String(normalized);
+      document.title = `(${badge.textContent}) Admin Panel - KrishiYantra`;
+    }
+
+    function startKycRealtimePolling() {
+      if (kycPollTimer) clearInterval(kycPollTimer);
+      kycPollTimer = setInterval(() => {
+        if (document.hidden) return;
+        loadKyc(true);
+      }, 5000);
+    }
+
+    async function loadDashboard() {
+      try {
+        const res = await apiCall('GET', '/admin/dashboard', null, true);
+        document.getElementById('statsGrid').innerHTML = `
+          <div class="stat-card"><div class="stat-label">Pending KYC</div><div class="stat-value">${res.pending_kyc || 0}</div></div>
+          <div class="stat-card"><div class="stat-label">Approved Owners</div><div class="stat-value">${res.approved_owners || 0}</div></div>
+          <div class="stat-card"><div class="stat-label">Open Disputes</div><div class="stat-value">${res.open_disputes || 0}</div></div>
+          <div class="stat-card"><div class="stat-label">Total Commission</div><div class="stat-value">Rs. ${(res.total_commission || 0).toLocaleString('en-IN')}</div></div>
+          <div class="stat-card"><div class="stat-label">Owner Payout</div><div class="stat-value">Rs. ${(res.total_owner_payout || 0).toLocaleString('en-IN')}</div></div>
+        `;
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to load dashboard summary.', 'error');
+      }
+    }
+
+    async function loadKyc(fromPoll = false) {
+      const wrap = document.getElementById('kycList');
+      try {
+        const res = await apiCall('GET', '/admin/owner-kyc/pending', null, true);
+        const owners = res.owners || [];
+        const pendingCount = owners.length;
+
+        if (fromPoll && lastPendingKycCount !== null && pendingCount > lastPendingKycCount) {
+          const delta = pendingCount - lastPendingKycCount;
+          showAlert('alertBox', `${delta} new pending KYC request${delta > 1 ? 's' : ''} received.`, 'info');
+          playKycSoundNotification();
+        }
+
+        lastPendingKycCount = pendingCount;
+        updatePendingKycBadge(pendingCount);
+
+        if (!owners.length) {
+          wrap.innerHTML = '<div class="empty">No pending KYC submissions.</div>';
+          return;
+        }
+
+        wrap.innerHTML = owners.map((owner) => {
+          const details = owner.kyc_details || {};
+          return `
+            <div class="row-card">
+              <div class="row-title">${owner.name} (${owner.email})</div>
+              <div class="row-meta">Phone: ${owner.phone || '-'} | Location: ${owner.location || '-'}</div>
+              <div class="row-meta">Business: ${details.business_name || '-'} | ID: ${details.id_number || '-'} | PAN: ${details.pan_number || '-'}</div>
+              <div class="actions">
+                <button class="btn-green" onclick="reviewKyc('${owner.id}', 'approved')"><i class="fa-solid fa-check"></i> Approve</button>
+                <button class="btn-outline" style="border-color:#fca5a5;color:#b91c1c;" onclick="reviewKyc('${owner.id}', 'rejected')"><i class="fa-solid fa-xmark"></i> Reject</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        updatePendingKycBadge(lastPendingKycCount || 0);
+        wrap.innerHTML = `<div class="empty">${e.message || 'Failed to load KYC list.'}</div>`;
+      }
+    }
+
+    async function reviewKyc(ownerId, decision) {
+      const notes = window.prompt(`Optional notes for ${decision}:`, '') || '';
+      try {
+        await apiCall('PUT', `/admin/owner-kyc/${ownerId}/decision`, { decision, notes }, true);
+        showAlert('alertBox', `Owner KYC ${decision}.`, 'success');
+        await Promise.all([loadDashboard(), loadKyc()]);
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Failed to update KYC decision.', 'error');
+      }
+    }
+
+    async function loadCommission() {
+      try {
+        const res = await apiCall('GET', '/admin/commission', null, true);
+        document.getElementById('commissionInfo').innerHTML = `Current default commission: <strong>${Number(res.default_percent || 0)}%</strong><br/>Last updated by: ${res.updated_by || 'system'}`;
+        document.getElementById('commissionInput').value = Number(res.default_percent || 0);
+      } catch (e) {
+        document.getElementById('commissionInfo').textContent = e.message || 'Failed to load commission settings.';
+      }
+    }
+
+    async function saveCommission() {
+      const value = Number(document.getElementById('commissionInput').value || 0);
+      if (Number.isNaN(value) || value < 0 || value > 100) {
+        showAlert('alertBox', 'Commission must be between 0 and 100.', 'error');
+        return;
+      }
+
+      try {
+        await apiCall('PUT', '/admin/commission', { default_percent: value }, true);
+        showAlert('alertBox', 'Commission settings saved.', 'success');
+        await Promise.all([loadDashboard(), loadCommission()]);
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Failed to save commission settings.', 'error');
+      }
+    }
+
+    async function loadDisputes() {
+      const wrap = document.getElementById('disputeList');
+      try {
+        const res = await apiCall('GET', '/admin/disputes', null, true);
+        const disputes = res.disputes || [];
+        if (!disputes.length) {
+          wrap.innerHTML = '<div class="empty">No disputes filed.</div>';
+          return;
+        }
+
+        wrap.innerHTML = disputes.map((item) => `
+          <div class="row-card">
+            <div class="row-title">${item.issue_type || 'other'} dispute | Status: ${item.status}</div>
+            <div class="row-meta">Rental: ${item.rental_id} | Raised by: ${item.raised_by_name || '-'}</div>
+            <div class="row-meta">${item.description}</div>
+            <div class="actions">
+              <button class="btn-outline" onclick="updateDispute('${item.id}', 'reviewing')">Mark Reviewing</button>
+              <button class="btn-green" onclick="updateDispute('${item.id}', 'resolved')">Resolve</button>
+              <button class="btn-outline" style="border-color:#fca5a5;color:#b91c1c;" onclick="updateDispute('${item.id}', 'rejected')">Reject</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        wrap.innerHTML = `<div class="empty">${e.message || 'Failed to load disputes.'}</div>`;
+      }
+    }
+
+    async function updateDispute(disputeId, status) {
+      const admin_notes = window.prompt('Admin note (optional):', '') || '';
+      const resolution_note = status === 'resolved' ? (window.prompt('Resolution note:', '') || '') : '';
+      try {
+        await apiCall('PUT', `/admin/disputes/${disputeId}/status`, { status, admin_notes, resolution_note }, true);
+        showAlert('alertBox', `Dispute marked as ${status}.`, 'success');
+        await Promise.all([loadDashboard(), loadDisputes()]);
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to update dispute.', 'error');
+      }
+    }
+
+    initAdmin();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      loadKyc(true);
+    });
+
+    // Prime audio context on first user interaction for better browser compatibility.
+    document.addEventListener('pointerdown', () => {
+      initKycAudio();
+      if (kycAudioContext && kycAudioContext.state === 'suspended') {
+        kycAudioContext.resume().catch(() => {});
+      }
+    }, { once: true });
+  </script>
+</body>
+</html>

@@ -76,15 +76,36 @@ function updateNavAuth() {
   if (!navAuth) return;
   const user = getUser();
   if (user) {
-    const isOwner = user.role === 'owner';
+    const role = String(user.role || '').toLowerCase();
+    const isOwner = role === 'owner';
+    const isAdmin = role === 'admin';
+    const kycStatus = String(user.kyc_status || '').toLowerCase();
     const firstName = (user.name || 'User').split(' ')[0];
-    const roleLabel = isOwner ? 'Owner' : 'Farmer';
-    const ownerLink = user.role === 'owner'
-      ? '<a href="/pages/owner-dashboard.html" class="btn-outline" style="margin-left:8px">Owner Dashboard</a>'
+    const roleLabel = isAdmin ? 'Admin' : (isOwner ? 'Owner' : 'Farmer');
+    const ownerPortalHref = (kycStatus === 'approved') ? '/pages/owner-dashboard.html' : '/pages/owner-kyc.html';
+    const ownerPortalLabel = (kycStatus === 'approved') ? 'Owner Dashboard' : 'Complete KYC';
+    const ownerEquipmentLink = (isOwner && kycStatus === 'approved')
+      ? '<a href="/pages/owner-dashboard.html#equipmentList" class="btn-outline" style="margin-left:8px">Equipment</a>'
       : '';
+    const ownerLink = isOwner
+      ? `<a href="${ownerPortalHref}" class="btn-outline" style="margin-left:8px">${ownerPortalLabel}</a>`
+      : '';
+    const adminLink = isAdmin
+      ? '<a href="/pages/admin-panel.html" class="btn-outline" style="margin-left:8px">Admin Panel</a>'
+      : '';
+
+    let statusTag = '';
+    if (isOwner) {
+      if (kycStatus === 'pending') statusTag = ' | KYC: Pending';
+      else if (kycStatus === 'approved') statusTag = ' | KYC: Approved';
+      else if (kycStatus === 'rejected') statusTag = ' | KYC: Rejected';
+    }
+
     navAuth.innerHTML = `
-      <span style="color:rgba(255,255,255,0.8);font-size:0.88rem;">${roleLabel}: <strong>${firstName}</strong></span>
+      <span style="color:rgba(255,255,255,0.8);font-size:0.88rem;">${roleLabel}: <strong>${firstName}</strong>${statusTag}</span>
       ${ownerLink}
+      ${ownerEquipmentLink}
+      ${adminLink}
       <button class="btn-outline" onclick="logout()">Logout</button>
     `;
   }

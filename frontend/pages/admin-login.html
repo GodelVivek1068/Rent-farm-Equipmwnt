@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    body { min-height: 100vh; background: linear-gradient(135deg, #0b2239 0%, #1f5f8b 100%); display: flex; flex-direction: column; }
+    .auth-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 16px; }
+    .auth-card {
+      background: var(--white); border-radius: 20px; padding: 40px 36px;
+      width: 100%; max-width: 430px; box-shadow: var(--shadow-lg);
+    }
+    .auth-logo { text-align: center; margin-bottom: 26px; }
+    .auth-logo i { font-size: 2rem; color: #1f5f8b; }
+    .auth-logo h2 { font-family: 'Playfair Display', serif; color: #0f3a56; margin-top: 8px; font-size: 1.5rem; }
+    .auth-note {
+      background: #eef7ff;
+      border: 1px solid #cde6ff;
+      border-radius: var(--radius-sm);
+      color: #0f3a56;
+      font-size: 0.84rem;
+      padding: 10px;
+      margin-bottom: 14px;
+    }
+    .btn-submit { width: 100%; padding: 13px; font-size: 1rem; justify-content: center; border-radius: var(--radius-sm); }
+    .auth-switch { text-align: center; margin-top: 20px; font-size: 0.88rem; color: var(--gray-600); }
+    .auth-switch a { color: #0f3a56; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links"><li><a href="../index.html">Home</a></li><li><a href="equipment.html">Equipment</a></li></ul>
+    <div class="nav-auth">
+      <a href="login.html" class="btn-outline">User Login</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <i class="fa-solid fa-shield-halved"></i>
+        <h2>Admin Login</h2>
+        <p>Access KYC approvals and marketplace controls</p>
+      </div>
+      <div id="alertBox"></div>
+      <div class="auth-note">
+        Only admin accounts can login here.
+      </div>
+      <div class="form-group">
+        <label>Admin Email</label>
+        <input type="email" id="email" placeholder="admin@email.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Your password"/>
+      </div>
+      <button class="btn-green btn-submit" onclick="doAdminLogin()">
+        <i class="fa-solid fa-right-to-bracket"></i> Login As Admin
+      </button>
+      <div class="auth-switch">
+        Owner/Farmer login? <a href="login.html">Go to User Login</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/main.js"></script>
+  <script>
+    if (isLoggedIn()) {
+      const user = getUser() || {};
+      if (String(user.role || '').toLowerCase() === 'admin') {
+        window.location.href = 'admin-panel.html';
+      } else {
+        window.location.href = '../index.html';
+      }
+    }
+
+    async function doAdminLogin() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) {
+        showAlert('alertBox', 'Please fill all fields', 'error');
+        return;
+      }
+
+      try {
+        const res = await apiCall('POST', '/auth/login-admin', { email, password });
+        if (!res.token) {
+          showAlert('alertBox', res.error || 'Login failed', 'error');
+          return;
+        }
+
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+
+        const redirect = new URLSearchParams(window.location.search).get('redirect');
+        if (redirect) {
+          window.location.href = redirect;
+          return;
+        }
+
+        window.location.href = 'admin-panel.html';
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to login as admin.', 'error');
+      }
+    }
+
+    document.getElementById('password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') doAdminLogin();
+    });
+  </script>
+</body>
+</html>

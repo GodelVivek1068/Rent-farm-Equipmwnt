@@ -68,6 +68,8 @@
       </button>
       <div class="auth-switch">
         Don't have an account? <a href="register.html">Register here</a>
+        <br/>Equipment owner? <a href="owner-register.html">Owner register</a>
+        <br/>Admin? <a href="admin-login.html">Admin login</a>
       </div>
     </div>
   </div>
@@ -102,7 +104,12 @@
             return;
           }
           if ((res.user && res.user.role) === 'owner') {
-            window.location.href = 'owner-dashboard.html';
+            const kycStatus = String((res.user && res.user.kyc_status) || '').toLowerCase();
+            if (!kycStatus || kycStatus === 'pending' || kycStatus === 'rejected') {
+              window.location.href = 'owner-kyc.html';
+            } else {
+              window.location.href = 'owner-dashboard.html';
+            }
             return;
           }
           window.location.href = '../index.html';

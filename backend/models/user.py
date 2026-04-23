@@ -8,7 +8,10 @@ Fields:
   - phone        : str
   - location     : str
   - password     : str (hashed with werkzeug)
-  - role         : str ('renter' | 'owner')
+  - role         : str ('renter' | 'owner' | 'admin')
+  - kyc_status   : str ('not_required'|'pending'|'approved'|'rejected')
+  - kyc_details  : dict
+  - kyc_review_notes : str
   - created_at   : datetime
 """
 
@@ -18,6 +21,9 @@ USER_SCHEMA = {
     'phone': str,
     'location': str,
     'password': str,
-    'role': str,         # 'renter' or 'owner'
+    'role': str,
+    'kyc_status': str,
+    'kyc_details': dict,
+    'kyc_review_notes': str,
     'created_at': 'datetime'
 }

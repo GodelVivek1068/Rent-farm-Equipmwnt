@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Owner KYC - KrishiYantra</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .page-header {
+      background: linear-gradient(120deg, #1b4332, #2d6a4f);
+      color: #fff;
+      padding: 42px 24px 32px;
+      text-align: center;
+    }
+    .page-header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+    .page-header p { color: rgba(255,255,255,0.82); }
+
+    .wrap { max-width: 760px; margin: 30px auto; padding: 0 24px 20px; }
+    .card {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+      padding: 22px;
+    }
+    .steps {
+      background: #fff8e5;
+      border: 1px solid #f0d98f;
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      margin-bottom: 14px;
+      color: #6d4a00;
+      font-size: 0.85rem;
+    }
+    .status {
+      margin-bottom: 12px;
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+    .status.pending { background: #fff0c2; color: #7a4a00; }
+    .status.approved { background: #dcfce7; color: #166534; }
+    .status.rejected { background: #fee2e2; color: #b91c1c; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .full { grid-column: 1 / -1; }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    @media(max-width:680px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><i class="fa-solid fa-tractor"></i><span>KrishiYantra</span></div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="equipment.html">Equipment</a></li>
+      <li><a href="owner-kyc.html" class="active">Owner KYC</a></li>
+    </ul>
+    <div class="nav-auth" id="navAuth">
+      <a href="login.html" class="btn-outline">Login</a>
+      <a href="owner-register.html" class="btn-primary">Owner Register</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa-solid fa-bars"></i></button>
+  </nav>
+
+  <div class="page-header">
+    <h1>Owner KYC Verification</h1>
+    <p>Complete your KYC to activate your personal owner dashboard.</p>
+  </div>
+
+  <div class="wrap">
+    <div id="alertBox"></div>
+    <div class="card">
+      <div class="steps">
+        Step 1 completed: Owner registration<br/>
+        Step 2: Submit KYC details (current page)<br/>
+        Step 3: Admin reviews and approves<br/>
+        Step 4: Automatic redirect to owner dashboard
+      </div>
+
+      <div id="kycStatusBox"></div>
+      <div id="kycReviewNotes" style="font-size:0.84rem;color:var(--gray-600);margin-bottom:10px;"></div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Business / Owner Name *</label>
+          <input type="text" id="businessName" placeholder="e.g. Patil Agro Services"/>
+        </div>
+        <div class="form-group">
+          <label>ID Number *</label>
+          <input type="text" id="idNumber" placeholder="Aadhaar / Voter ID"/>
+        </div>
+        <div class="form-group">
+          <label>PAN Number</label>
+          <input type="text" id="panNumber" placeholder="e.g. ABCDE1234F"/>
+        </div>
+        <div class="form-group">
+          <label>ID Proof URL</label>
+          <input type="url" id="idProofUrl" placeholder="https://..."/>
+        </div>
+        <div class="form-group full">
+          <label>Address Proof URL</label>
+          <input type="url" id="addressProofUrl" placeholder="https://..."/>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-outline" onclick="loadKycStatus()">Refresh</button>
+        <button class="btn-green" onclick="submitKyc()"><i class="fa-solid fa-id-card"></i> Submit KYC</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/main.js"></script>
+  <script>
+    let kycPollTimer = null;
+
+    function requireOwner() {
+      if (!isLoggedIn()) {
+        window.location.href = 'login.html?redirect=owner-kyc.html';
+        return false;
+      }
+      const user = getUser() || {};
+      if (String(user.role || '').toLowerCase() !== 'owner') {
+        window.location.href = '../index.html';
+        return false;
+      }
+      return true;
+    }
+
+    function renderStatus(status) {
+      const box = document.getElementById('kycStatusBox');
+      const normalized = String(status || 'pending').toLowerCase();
+      if (normalized === 'approved') {
+        box.innerHTML = '<div class="status approved"><i class="fa-solid fa-circle-check"></i> KYC approved. Your owner dashboard is active.</div>';
+      } else if (normalized === 'rejected') {
+        box.innerHTML = '<div class="status rejected"><i class="fa-solid fa-circle-xmark"></i> KYC rejected. Update details and resubmit.</div>';
+      } else {
+        box.innerHTML = '<div class="status pending"><i class="fa-solid fa-clock"></i> KYC pending admin review. Dashboard access is blocked until approval.</div>';
+      }
+    }
+
+    function startKycPolling() {
+      if (kycPollTimer) clearInterval(kycPollTimer);
+      kycPollTimer = setInterval(() => {
+        if (document.hidden) return;
+        loadKycStatus();
+      }, 6000);
+    }
+
+    async function loadKycStatus() {
+      try {
+        const res = await apiCall('GET', '/admin/owner-kyc/status', null, true);
+        const owner = res.owner || {};
+        const status = String(owner.kyc_status || 'pending').toLowerCase();
+        renderStatus(status);
+
+        const details = owner.kyc_details || {};
+        if (details.business_name) document.getElementById('businessName').value = details.business_name;
+        if (details.id_number) document.getElementById('idNumber').value = details.id_number;
+        if (details.pan_number) document.getElementById('panNumber').value = details.pan_number;
+        if (details.id_proof_url) document.getElementById('idProofUrl').value = details.id_proof_url;
+        if (details.address_proof_url) document.getElementById('addressProofUrl').value = details.address_proof_url;
+
+        const notes = owner.kyc_review_notes || '';
+        document.getElementById('kycReviewNotes').textContent = notes ? `Admin note: ${notes}` : '';
+
+        const user = getUser() || {};
+        user.kyc_status = status;
+        user.kyc_review_notes = notes;
+        localStorage.setItem('user', JSON.stringify(user));
+        updateNavAuth();
+
+        if (status === 'approved') {
+          showAlert('alertBox', 'KYC approved. Redirecting to owner dashboard...', 'success');
+          setTimeout(() => {
+            window.location.href = 'owner-dashboard.html';
+          }, 900);
+        }
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to fetch KYC status', 'error');
+      }
+    }
+
+    async function submitKyc() {
+      const business_name = document.getElementById('businessName').value.trim();
+      const id_number = document.getElementById('idNumber').value.trim();
+      const pan_number = document.getElementById('panNumber').value.trim();
+      const id_proof_url = document.getElementById('idProofUrl').value.trim();
+      const address_proof_url = document.getElementById('addressProofUrl').value.trim();
+
+      if (!business_name || !id_number) {
+        showAlert('alertBox', 'Business name and ID number are required', 'error');
+        return;
+      }
+
+      try {
+        await apiCall('POST', '/admin/owner-kyc', {
+          business_name,
+          id_number,
+          pan_number,
+          id_proof_url,
+          address_proof_url
+        }, true);
+        showAlert('alertBox', 'KYC submitted and sent to admin for approval.', 'success');
+        await loadKycStatus();
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to submit KYC', 'error');
+      }
+    }
+
+    if (requireOwner()) {
+      const reason = new URLSearchParams(window.location.search).get('reason');
+      if (reason === 'approval_required') {
+        showAlert('alertBox', 'Admin approval is required before opening owner dashboard.', 'error');
+      }
+      loadKycStatus();
+      startKycPolling();
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      loadKycStatus();
+    });
+  </script>
+</body>
+</html>

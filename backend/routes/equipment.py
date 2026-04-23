@@ -194,6 +194,7 @@ def eq_to_dict(eq):
         'owner_name': eq.get('owner_name', ''),
         'owner_phone': eq.get('owner_phone', ''),
         'owner_id': str(eq.get('owner_id', '')),
+        'owner_kyc_status': eq.get('owner_kyc_status', ''),
         'available': bool(eq.get('available', True)) and not has_active_booking,
         'created_at': str(eq.get('created_at', ''))
     }
@@ -469,6 +470,12 @@ def create_equipment():
     if user.get('role', 'renter') != 'owner':
         return jsonify({'error': 'Only owners can list equipment'}), 403
 
+    owner_kyc_status = str(user.get('kyc_status', 'approved')).lower()
+    if owner_kyc_status != 'approved':
+        return jsonify({
+            'error': 'Owner KYC is not approved yet. Submit KYC and wait for admin approval before listing equipment.'
+        }), 403
+
     name = data.get('name', '').strip()
     category = data.get('category', '').strip()
     price_per_day = data.get('price_per_day')
@@ -504,6 +511,7 @@ def create_equipment():
         'owner_phone': data.get('owner_phone', user.get('phone', '')),
         'owner_name': user.get('name', ''),
         'owner_id': user['_id'],
+        'owner_kyc_status': owner_kyc_status,
         'available': True,
         'created_at': datetime.datetime.utcnow()
     }

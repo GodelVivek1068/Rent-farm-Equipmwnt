@@ -17,6 +17,34 @@
 
     .dashboard-wrap { max-width: 1180px; margin: 28px auto; padding: 0 24px; }
 
+    .quick-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .option-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      border: 1px solid var(--gray-200);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--green-dark);
+      background: linear-gradient(180deg, #f7fffb, #ffffff);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+    }
+
+    .option-chip:hover {
+      border-color: #84cc99;
+      background: var(--green-pale);
+    }
+
     .stats-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0,1fr)); margin-bottom: 24px; }
     .stat-card {
       background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius);
@@ -71,10 +99,69 @@
 
     .empty { color: var(--gray-400); text-align: center; padding: 18px; }
 
-    .form-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .full { grid-column: 1 / -1; }
-
     .thumb { width: 68px; height: 68px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--gray-200); background: var(--green-pale); }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .panel-head h3 { margin-bottom: 0; }
+
+    .add-box {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      margin-bottom: 14px;
+      background: linear-gradient(180deg, #f7fffb, #ffffff);
+    }
+
+    .add-box.hidden { display: none; }
+
+    .add-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .add-grid .full { grid-column: 1 / -1; }
+
+    .add-grid label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--gray-600);
+      margin-bottom: 5px;
+      font-weight: 700;
+    }
+
+    .add-grid input,
+    .add-grid select,
+    .add-grid textarea {
+      width: 100%;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      padding: 9px 10px;
+      font: inherit;
+      color: var(--gray-700);
+      background: var(--white);
+    }
+
+    .add-grid textarea {
+      min-height: 82px;
+      resize: vertical;
+    }
+
+    .add-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
 
     @media(max-width:980px) {
       .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -82,8 +169,8 @@
     }
     @media(max-width:640px) {
       .owner-summary { grid-template-columns: 1fr; }
-      .form-inline { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: 1fr; }
+      .add-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -111,6 +198,18 @@
   <div class="dashboard-wrap">
     <div id="alertBox"></div>
     <div id="ownerInfo" class="alert alert-info" style="margin-bottom:14px;"></div>
+    <div id="orgInfo" class="alert alert-success" style="margin-bottom:14px;display:none;"></div>
+
+    <div class="quick-options">
+      <a class="option-chip" href="equipment.html">
+        <i class="fa-solid fa-tractor"></i>
+        Equipment
+      </a>
+      <button type="button" class="option-chip" onclick="toggleAddEquipmentForm(true)">
+        <i class="fa-solid fa-plus"></i>
+        Add Equipment
+      </button>
+    </div>
 
     <div class="stats-grid" id="statsGrid">
       <div class="stat-card"><div class="stat-label">Total Listings</div><div class="stat-value">-</div></div>
@@ -127,7 +226,53 @@
       </section>
 
       <section class="panel" style="grid-column: 1 / -1;">
-        <h3><i class="fa-solid fa-list-check"></i> Manage Listings</h3>
+        <div class="panel-head">
+          <h3><i class="fa-solid fa-list-check"></i> Manage Listings</h3>
+          <button type="button" class="btn-mini ok" onclick="toggleAddEquipmentForm()">
+            <i class="fa-solid fa-plus"></i> Add Equipment
+          </button>
+        </div>
+        <div id="addEquipmentBox" class="add-box hidden">
+          <div class="add-grid">
+            <div>
+              <label for="addEqName">Equipment Name *</label>
+              <input type="text" id="addEqName" placeholder="e.g. Mahindra 575 DI"/>
+            </div>
+            <div>
+              <label for="addEqCategory">Category *</label>
+              <select id="addEqCategory">
+                <option value="tractor">Tractor</option>
+                <option value="harvester">Harvester</option>
+                <option value="rotavator">Rotavator</option>
+                <option value="sprayer">Sprayer</option>
+                <option value="thresher">Thresher</option>
+                <option value="plough">Plough</option>
+                <option value="seeder">Seeder</option>
+                <option value="pump">Water Pump</option>
+              </select>
+            </div>
+            <div>
+              <label for="addEqPrice">Price Per Day (Rs.) *</label>
+              <input type="number" id="addEqPrice" min="100" placeholder="e.g. 2500"/>
+            </div>
+            <div>
+              <label for="addEqLocation">Location *</label>
+              <input type="text" id="addEqLocation" placeholder="Village / City, District"/>
+            </div>
+            <div class="full">
+              <label for="addEqImage">Image URL (optional)</label>
+              <input type="url" id="addEqImage" placeholder="https://example.com/equipment.jpg"/>
+            </div>
+            <div class="full">
+              <label for="addEqDescription">Description (optional)</label>
+              <textarea id="addEqDescription" placeholder="Brand, model, condition, attachments..."></textarea>
+            </div>
+          </div>
+          <div class="add-actions">
+            <button type="button" class="btn-mini no" onclick="toggleAddEquipmentForm(false)">Cancel</button>
+            <button type="button" class="btn-mini ok" onclick="submitAddEquipment()">Save Equipment</button>
+          </div>
+        </div>
         <div class="equipment-list" id="equipmentList"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>
       </section>
     </div>
@@ -145,6 +290,7 @@
     let ownerEquipment = [];
     let ownerBookings = [];
     let bookingRefreshTimer = null;
+    let creatingEquipment = false;
 
     function normalizeStatus(value) {
       const raw = String(value || '').trim().toLowerCase();
@@ -177,8 +323,47 @@
       return true;
     }
 
+    async function ensureApprovedKyc() {
+      try {
+        const res = await apiCall('GET', '/admin/owner-kyc/status', null, true);
+        const owner = res.owner || {};
+        const status = String(owner.kyc_status || 'pending').toLowerCase();
+        const kycDetails = owner.kyc_details || {};
+        const organizationName = String(kycDetails.business_name || '').trim();
+
+        const localUser = getUser() || {};
+        localUser.kyc_status = status;
+        localUser.organization_name = organizationName;
+        localStorage.setItem('user', JSON.stringify(localUser));
+        updateNavAuth();
+
+        if (status !== 'approved') {
+          window.location.href = 'owner-kyc.html?reason=approval_required';
+          return false;
+        }
+
+        const orgInfo = document.getElementById('orgInfo');
+        if (orgInfo) {
+          if (organizationName) {
+            orgInfo.style.display = 'block';
+            orgInfo.innerHTML = `Organization: <strong>${safeText(organizationName)}</strong>`;
+          } else {
+            orgInfo.style.display = 'none';
+            orgInfo.innerHTML = '';
+          }
+        }
+
+        return true;
+      } catch (_) {
+        window.location.href = 'owner-kyc.html?reason=approval_required';
+        return false;
+      }
+    }
+
     async function initOwnerDashboard() {
       if (!requireOwner()) return;
+      const approved = await ensureApprovedKyc();
+      if (!approved) return;
       const owner = getUser() || {};
       document.getElementById('ownerInfo').innerHTML = `Logged in as owner: <strong>${safeText(owner.name || 'Unknown')}</strong> (${safeText(owner.email || 'no-email')}). Booking requests are shown only for equipment owned by this account.`;
       await Promise.all([loadEquipment(), loadBookings()]);
@@ -382,6 +567,63 @@
         await loadEquipment();
       } catch (e) {
         showAlert('alertBox', e.message || 'Unable to delete listing.', 'error');
+      }
+    }
+
+    function toggleAddEquipmentForm(forceState) {
+      const box = document.getElementById('addEquipmentBox');
+      if (!box) return;
+      const shouldOpen = typeof forceState === 'boolean' ? forceState : box.classList.contains('hidden');
+      box.classList.toggle('hidden', !shouldOpen);
+      if (shouldOpen) {
+        const firstInput = document.getElementById('addEqName');
+        if (firstInput) firstInput.focus();
+      }
+    }
+
+    function resetAddEquipmentForm() {
+      document.getElementById('addEqName').value = '';
+      document.getElementById('addEqCategory').value = 'tractor';
+      document.getElementById('addEqPrice').value = '';
+      document.getElementById('addEqLocation').value = '';
+      document.getElementById('addEqImage').value = '';
+      document.getElementById('addEqDescription').value = '';
+    }
+
+    async function submitAddEquipment() {
+      if (creatingEquipment) return;
+
+      const name = document.getElementById('addEqName').value.trim();
+      const category = document.getElementById('addEqCategory').value;
+      const price = Number(document.getElementById('addEqPrice').value || 0);
+      const location = document.getElementById('addEqLocation').value.trim();
+      const image_url = document.getElementById('addEqImage').value.trim();
+      const description = document.getElementById('addEqDescription').value.trim();
+
+      if (!name || !category || !location || price <= 0) {
+        showAlert('alertBox', 'Please fill Name, Category, Price, and Location with valid values.', 'error');
+        return;
+      }
+
+      creatingEquipment = true;
+      try {
+        await apiCall('POST', '/equipment/', {
+          name,
+          category,
+          price_per_day: Math.round(price),
+          location,
+          image_url,
+          description
+        }, true);
+
+        showAlert('alertBox', 'Equipment added successfully.', 'success');
+        resetAddEquipmentForm();
+        toggleAddEquipmentForm(false);
+        await loadEquipment();
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to add equipment.', 'error');
+      } finally {
+        creatingEquipment = false;
       }
     }
 

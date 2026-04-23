@@ -158,6 +158,7 @@ Simply open `frontend/index.html` in your browser.
     - `SECRET_KEY` = long random secret
     - `RAZORPAY_KEY_ID` = your Razorpay key id
     - `RAZORPAY_KEY_SECRET` = your Razorpay key secret
+    - `ADMIN_EMAILS` = comma-separated admin emails (auto-admin on register)
     - `CORS_ORIGINS` = `https://<your-netlify-site>.netlify.app`
     - `FLASK_DEBUG` = `0`
 5. Deploy and copy your backend URL, for example:
@@ -226,6 +227,22 @@ Notes:
 | GET | `/api/rentals/owner` | Get rentals for my equipment (auth) |
 | PUT | `/api/rentals/<id>/status` | Update rental status (auth) |
 
+### Admin + Marketplace Ops
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/admin/owner-kyc` | Owner submits KYC details |
+| GET | `/api/admin/owner-kyc/status` | Get current owner KYC status |
+| GET | `/api/admin/owner-kyc/pending` | List owner KYC submissions pending review (admin) |
+| PUT | `/api/admin/owner-kyc/<owner_id>/decision` | Approve/reject owner KYC (admin) |
+| GET | `/api/admin/dashboard` | Admin summary metrics |
+| GET | `/api/admin/commission` | Get default commission setting (admin) |
+| PUT | `/api/admin/commission` | Update default commission setting (admin) |
+| GET | `/api/admin/commissions` | List commission records (admin) |
+| POST | `/api/admin/disputes` | Raise a dispute for a rental |
+| GET | `/api/admin/disputes/my` | List current user's disputes |
+| GET | `/api/admin/disputes` | List disputes (admin) |
+| PUT | `/api/admin/disputes/<dispute_id>/status` | Update dispute status (admin) |
+
 ### Contact
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -239,8 +256,13 @@ Notes:
 - **Equipment Browse** — Filter by category, location, price, keyword; sort options
 - **Equipment Detail** — Full info, owner contact, date picker booking with total calculation
 - **Authentication** — JWT-based register/login, role selection (owner/renter)
+- **Owner KYC Approval** — Owner KYC submission and admin review before listing equipment
 - **List Equipment** — Owners can list their equipment with all details
 - **My Rentals** — View all booked rentals and owned equipment listings
+- **Nearby Multi-owner Discovery** — Distance-aware alternatives from nearby owners when selected equipment is unavailable
+- **Admin Panel** — KYC approvals, commission management, dispute handling and marketplace analytics
+- **Commission Automation** — Commission and owner payout computed on rental completion
+- **Dispute Workflow** — Renter/owner can raise disputes and admin can resolve/reject
 - **Contact Page** — Contact form with topic selection
 - **Mobile Responsive** — Hamburger menu, responsive grids, mobile-friendly forms
 

@@ -169,10 +169,31 @@
               <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="btn-map-bold">
                 <i class="fa-solid fa-map-location-dot"></i> View Map
               </a>
+              <button class="btn-outline" style="padding:6px 12px;font-size:0.76rem;" onclick="raiseDispute('${r._id}')">
+                <i class="fa-solid fa-scale-balanced"></i> Raise Dispute
+              </button>
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    async function raiseDispute(rentalId) {
+      const issue_type = window.prompt('Issue type (payment/damage/delivery/quality/other):', 'other');
+      if (issue_type === null) return;
+      const description = window.prompt('Describe the issue in detail:');
+      if (!description || !description.trim()) return;
+
+      try {
+        await apiCall('POST', '/admin/disputes', {
+          rental_id: rentalId,
+          issue_type,
+          description: description.trim()
+        }, true);
+        alert('Dispute submitted. Admin team will review it.');
+      } catch (e) {
+        alert(e.message || 'Unable to submit dispute right now.');
+      }
     }
 
     function renderMyEquipment(equipment) {

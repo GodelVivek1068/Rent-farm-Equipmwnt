@@ -28,3 +28,30 @@ def require_auth(f):
             return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
     return decorated
+
+
+def require_roles(allowed_roles):
+    """Decorator: requires valid JWT and one of allowed roles."""
+    normalized = {str(role).strip().lower() for role in (allowed_roles or [])}
+
+    def wrapper(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            user = get_current_user()
+            if not user:
+                return jsonify({'error': 'Authentication required'}), 401
+
+            user_role = str(user.get('role', 'renter')).strip().lower()
+            if user_role not in normalized:
+                return jsonify({'error': 'Forbidden'}), 403
+            return f(*args, **kwargs)
+
+        return decorated
+
+    return wrapper
+
+
+def is_admin(user):
+    if not user:
+        return False
+    return str(user.get('role', '')).strip().lower() == 'admin'

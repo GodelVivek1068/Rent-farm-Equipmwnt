@@ -7,6 +7,7 @@ import os
 import razorpay
 from config.db import mongo
 from utils.auth_middleware import get_current_user, require_auth
+from routes.admin_marketplace import apply_commission_for_rental
 
 rentals_bp = Blueprint('rentals', __name__)
 ACTIVE_RENTAL_STATUSES = {'pending', 'confirmed'}
@@ -91,6 +92,7 @@ def _sync_equipment_availability(equipment_id):
     )
 
 def rental_to_dict(r):
+    commission = r.get('commission', {}) if isinstance(r.get('commission', {}), dict) else {}
     return {
         '_id': str(r['_id']),
         'equipment_id': str(r.get('equipment_id', '')),
@@ -99,6 +101,8 @@ def rental_to_dict(r):
         'renter_id': str(r.get('renter_id', '')),
         'renter_name': r.get('renter_name', ''),
         'owner_id': str(r.get('owner_id', '')),
+        'owner_name': r.get('owner_name', ''),
+        'owner_phone': r.get('owner_phone', ''),
         'start_date': r.get('start_date', ''),
         'end_date': r.get('end_date', ''),
         'delivery_address': r.get('delivery_address', ''),
@@ -108,6 +112,11 @@ def rental_to_dict(r):
         'payment_id': r.get('payment_id', ''),
         'payment_order_id': r.get('payment_order_id', ''),
         'status': r.get('status', 'pending'),
+        'commission': {
+            'commission_percent': commission.get('commission_percent', 0),
+            'commission_amount': commission.get('commission_amount', 0),
+            'owner_payout': commission.get('owner_payout', 0)
+        },
         'created_at': str(r.get('created_at', ''))
     }
 
@@ -150,6 +159,8 @@ def _get_equipment_for_booking(equipment_id, user_id):
 
 def _create_rental_doc(user, eq, booking, payment):
     owner_id = eq.get('owner_id')
+    owner_name = eq.get('owner_name', '')
+    owner_phone = eq.get('owner_phone', '')
     return {
         'equipment_id': ObjectId(booking['equipment_id']),
         'equipment_name': eq['name'],
@@ -158,6 +169,8 @@ def _create_rental_doc(user, eq, booking, payment):
         'renter_name': user.get('name', ''),
         'owner_id': owner_id,
         'owner_id_str': str(owner_id) if owner_id is not None else '',
+        'owner_name': owner_name,
+        'owner_phone': owner_phone,
         'start_date': booking['start_date'],
         'end_date': booking['end_date'],
         'delivery_address': booking['delivery_address'],
@@ -167,6 +180,11 @@ def _create_rental_doc(user, eq, booking, payment):
         'payment_id': payment.get('payment_id', ''),
         'payment_order_id': payment.get('order_id', ''),
         'status': 'pending',
+        'commission': {
+            'commission_percent': 0,
+            'commission_amount': 0,
+            'owner_payout': 0
+        },
         'created_at': datetime.datetime.utcnow()
     }
 
@@ -199,8 +217,10 @@ def _owner_equipment_ids(user_id):
     return unique_ids
 
 
-def _rental_belongs_to_owner(rental, user_id, owner_equipment_id_strs):
+def _rental_belongs_to_owner(rental, user_id, owner_equipment_id_strs, owner_name='', owner_phone=''):
     user_id_str = str(user_id)
+    user_name = str(owner_name or '').strip().lower()
+    user_phone = str(owner_phone or '').strip()
 
     rental_owner_id = rental.get('owner_id')
     rental_owner_id_str = rental.get('owner_id_str')
@@ -215,6 +235,14 @@ def _rental_belongs_to_owner(rental, user_id, owner_equipment_id_strs):
 
     rental_equipment_id_str = rental.get('equipment_id_str')
     if str(rental_equipment_id_str) in owner_equipment_id_strs:
+        return True
+
+    rental_owner_name = str(rental.get('owner_name', '')).strip().lower()
+    if user_name and rental_owner_name and rental_owner_name == user_name:
+        return True
+
+    rental_owner_phone = str(rental.get('owner_phone', '')).strip()
+    if user_phone and rental_owner_phone and rental_owner_phone == user_phone:
         return True
 
     return False
@@ -360,12 +388,37 @@ def owner_rentals():
     user = get_current_user()
     owner_equipment_ids = _owner_equipment_ids(user['_id'])
     owner_equipment_id_strs = {str(value) for value in owner_equipment_ids}
+    user_name = str(user.get('name', '')).strip().lower()
+    user_phone = str(user.get('phone', '')).strip()
 
     # Fetch then filter to tolerate legacy ObjectId/string field mismatches.
     rentals = []
     for rental in mongo.db.rentals.find().sort('created_at', -1):
-        if _rental_belongs_to_owner(rental, user['_id'], owner_equipment_id_strs):
-            rentals.append(rental)
+        belongs_to_owner = _rental_belongs_to_owner(rental, user['_id'], owner_equipment_id_strs, user_name, user_phone)
+        if not belongs_to_owner:
+            continue
+
+        # Backfill legacy records so older bookings remain visible after the first match.
+        rental_owner_name = str(rental.get('owner_name', '')).strip().lower()
+        rental_owner_phone = str(rental.get('owner_phone', '')).strip()
+        if not rental.get('owner_id') or not rental.get('owner_id_str') or not rental_owner_name or not rental_owner_phone:
+            mongo.db.rentals.update_one(
+                {'_id': rental['_id']},
+                {
+                    '$set': {
+                        'owner_id': user['_id'],
+                        'owner_id_str': str(user['_id']),
+                        'owner_name': user.get('name', ''),
+                        'owner_phone': user.get('phone', '')
+                    }
+                }
+            )
+            rental['owner_id'] = user['_id']
+            rental['owner_id_str'] = str(user['_id'])
+            rental['owner_name'] = user.get('name', '')
+            rental['owner_phone'] = user.get('phone', '')
+
+        rentals.append(rental)
 
     return jsonify({'rentals': [rental_to_dict(r) for r in rentals]})
 
@@ -382,7 +435,14 @@ def update_rental_status(rental_id):
         rental = mongo.db.rentals.find_one({'_id': ObjectId(rental_id)})
         if not rental:
             return jsonify({'error': 'Not found'}), 404
-        is_owner = str(rental['owner_id']) == str(user['_id'])
+        owner_equipment_id_strs = {str(value) for value in _owner_equipment_ids(user['_id'])}
+        is_owner = _rental_belongs_to_owner(
+            rental,
+            user['_id'],
+            owner_equipment_id_strs,
+            user.get('name', ''),
+            user.get('phone', '')
+        )
         is_renter = str(rental['renter_id']) == str(user['_id'])
         if not is_owner and not is_renter:
             return jsonify({'error': 'Unauthorized'}), 403
@@ -395,7 +455,17 @@ def update_rental_status(rental_id):
         if is_owner and status == 'pending':
             return jsonify({'error': 'Owner cannot set status back to pending'}), 400
 
-        mongo.db.rentals.update_one({'_id': ObjectId(rental_id)}, {'$set': {'status': status}})
+        update_fields = {'status': status}
+        if status == 'completed':
+            commission_doc = apply_commission_for_rental(rental, actor_id=str(user['_id']))
+            if commission_doc:
+                update_fields['commission'] = {
+                    'commission_percent': commission_doc.get('commission_percent', 0),
+                    'commission_amount': commission_doc.get('commission_amount', 0),
+                    'owner_payout': commission_doc.get('owner_payout', 0)
+                }
+
+        mongo.db.rentals.update_one({'_id': ObjectId(rental_id)}, {'$set': update_fields})
 
         auto_cancelled_count = 0
         if is_owner and status == 'confirmed':

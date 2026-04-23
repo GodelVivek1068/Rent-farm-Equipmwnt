@@ -6,6 +6,7 @@ from routes.auth import auth_bp
 from routes.equipment import equipment_bp
 from routes.rentals import rentals_bp
 from routes.contact import contact_bp
+from routes.admin_marketplace import marketplace_admin_bp
 
 
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
@@ -27,6 +28,7 @@ def create_app():
     app.register_blueprint(equipment_bp, url_prefix='/api/equipment')
     app.register_blueprint(rentals_bp, url_prefix='/api/rentals')
     app.register_blueprint(contact_bp, url_prefix='/api/contact')
+    app.register_blueprint(marketplace_admin_bp, url_prefix='/api/admin')
 
     @app.route('/')
     def index():

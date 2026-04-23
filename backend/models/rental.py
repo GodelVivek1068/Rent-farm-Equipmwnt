@@ -14,6 +14,7 @@ Fields:
   - delivery_address : str
   - notes            : str
   - total_amount     : int (INR)
+  - commission       : dict {'commission_percent','commission_amount','owner_payout'}
   - status           : str ('pending'|'confirmed'|'cancelled'|'completed')
   - created_at       : datetime
 """
@@ -30,6 +31,7 @@ RENTAL_SCHEMA = {
     'delivery_address': str,
     'notes': str,
     'total_amount': int,
+    'commission': dict,
     'status': str,
     'created_at': 'datetime'
 }

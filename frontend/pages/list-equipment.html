@@ -41,6 +41,7 @@
 
   <div class="list-form">
     <div id="alertBox"></div>
+    <div id="kycNotice" class="alert alert-warning" style="display:none;margin-bottom:12px;"></div>
     <div class="form-card">
       <h3><i class="fa-solid fa-plus-circle"></i> Equipment Details</h3>
 
@@ -134,6 +135,33 @@
   <script>
     const ICONS = { tractor:'🚜', harvester:'🌾', rotavator:'⚙️', sprayer:'💧', thresher:'🌿', plough:'🔧', seeder:'🌱', pump:'🪣' };
 
+    async function loadOwnerKyc() {
+      const user = getUser() || {};
+      if (!isLoggedIn() || user.role !== 'owner') return;
+
+      try {
+        const res = await apiCall('GET', '/admin/owner-kyc/status', null, true);
+        const owner = res.owner || {};
+        const status = String(owner.kyc_status || 'pending').toLowerCase();
+        const localUser = getUser() || {};
+        localUser.kyc_status = status;
+        localStorage.setItem('user', JSON.stringify(localUser));
+
+        const notice = document.getElementById('kycNotice');
+        if (!notice) return;
+        if (status !== 'approved') {
+          notice.style.display = 'block';
+          notice.innerHTML = status === 'rejected'
+            ? 'Your KYC was rejected. Update and resubmit KYC from <a href="owner-kyc.html">Owner KYC page</a> before listing equipment.'
+            : 'Your KYC is pending admin approval. Listing is disabled until approval. You can track status on <a href="owner-kyc.html">Owner KYC page</a>.';
+        } else {
+          notice.style.display = 'none';
+        }
+      } catch (_) {
+        // Keep form accessible; backend enforces final KYC check.
+      }
+    }
+
     function updateIcon() {
       const cat = document.getElementById('eqCategory').value;
       document.getElementById('catPreview').textContent = ICONS[cat] || '🚜';
@@ -167,6 +195,11 @@
         setTimeout(() => {
           window.location.href = 'login.html?redirect=list-equipment.html';
         }, 1400);
+        return;
+      }
+      const kycStatus = String(user.kyc_status || '').toLowerCase();
+      if (kycStatus && kycStatus !== 'approved') {
+        showAlert('alertBox', 'Owner KYC approval is required before listing equipment.', 'error');
         return;
       }
       const name = document.getElementById('eqName').value.trim();
@@ -211,6 +244,8 @@
         showAlert('alertBox', e.message || 'Backend connection failed. Please ensure API is running on http://localhost:5000', 'error');
       }
     }
+
+    loadOwnerKyc();
   </script>
 </body>
 </html>
