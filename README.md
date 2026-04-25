@@ -158,6 +158,12 @@ Simply open `frontend/index.html` in your browser.
     - `SECRET_KEY` = long random secret
     - `RAZORPAY_KEY_ID` = your Razorpay key id
     - `RAZORPAY_KEY_SECRET` = your Razorpay key secret
+    - `SMTP_HOST` = SMTP server host (example: `smtp.gmail.com`)
+    - `SMTP_PORT` = SMTP server port (example: `587`)
+    - `SMTP_USER` = SMTP login username/email
+    - `SMTP_PASSWORD` = SMTP app password
+    - `SMTP_FROM_EMAIL` = sender email address shown to farmer
+    - `SMTP_USE_TLS` = `1` to enable TLS (`0` to disable)
     - `ADMIN_EMAILS` = comma-separated admin emails (auto-admin on register)
     - `CORS_ORIGINS` = `https://<your-netlify-site>.netlify.app`
     - `FLASK_DEBUG` = `0`
@@ -226,6 +232,7 @@ Notes:
 | GET | `/api/rentals/my` | Get my rentals as renter (auth) |
 | GET | `/api/rentals/owner` | Get rentals for my equipment (auth) |
 | PUT | `/api/rentals/<id>/status` | Update rental status (auth) |
+| POST | `/api/rentals/<id>/email-confirmation` | Owner sends booking confirmation email to farmer (auth) |
 
 ### Admin + Marketplace Ops
 | Method | Endpoint | Description |

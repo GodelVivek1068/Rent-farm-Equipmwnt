@@ -509,13 +509,28 @@
         const status = normalizeStatus(b.status);
         const statusClass = status === 'pending' ? 'badge-amber' : (status === 'confirmed' ? 'badge-green' : 'badge-red');
         const statusText = status === 'pending' ? 'pending confirmation' : status;
+        const farmerName = String(b.renter_name || b.farmer_name || '').trim() || 'Farmer';
+        const renterPhone = String(b.renter_phone || '').trim();
+        const renterEmail = String(b.renter_email || '').trim();
+        const renterPhoneHref = renterPhone.replace(/[^\d+]/g, '');
+        const renterContactBits = [];
+        if (renterPhone) {
+          renterContactBits.push(`<span><i class="fa-solid fa-phone"></i> ${safeText(renterPhone)}</span>`);
+        }
+        if (renterEmail) {
+          renterContactBits.push(`<span><i class="fa-solid fa-envelope"></i> ${safeText(renterEmail)}</span>`);
+        }
+        const renterContactHtml = renterContactBits.length
+          ? renterContactBits.join('')
+          : '<span><i class="fa-solid fa-circle-info"></i> Contact not available</span>';
         return `
           <div class="item-card">
             <div class="item-top">
               <div>
                 <div class="item-name">${safeText(b.equipment_name)}</div>
                 <div class="item-meta">
-                  <span><i class="fa-solid fa-user"></i> ${safeText(b.renter_name || 'Renter')}</span>
+                  <span><i class="fa-solid fa-user"></i> Farmer: ${safeText(farmerName)}</span>
+                  ${renterContactHtml}
                   <span><i class="fa-solid fa-calendar"></i> ${safeText(b.start_date)} to ${safeText(b.end_date)}</span>
                   <span><i class="fa-solid fa-money-bill-wave"></i> Rs. ${Number(b.total_amount || 0).toLocaleString('en-IN')}</span>
                   <span class="badge ${statusClass}">${safeText(statusText)}</span>
@@ -523,6 +538,8 @@
               </div>
             </div>
             <div class="actions">
+              ${renterPhone ? `<a class="btn-mini edit" href="tel:${safeText(renterPhoneHref)}"><i class="fa-solid fa-phone"></i> Call Farmer</a>` : ''}
+              ${renterEmail ? `<button class="btn-mini edit" onclick="emailFarmerBooking('${b._id}')"><i class="fa-solid fa-envelope"></i> Email Farmer</button>` : ''}
               ${status === 'pending' ? `<button class="btn-mini ok" onclick="updateBookingStatus('${b._id}', 'confirmed')">Accept</button><button class="btn-mini no" onclick="updateBookingStatus('${b._id}', 'cancelled')">Reject</button>` : ''}
               ${status === 'confirmed' ? `<button class="btn-mini edit" onclick="updateBookingStatus('${b._id}', 'completed')">Mark Completed</button>` : ''}
             </div>
@@ -649,6 +666,21 @@
         await loadBookings();
       } catch (e) {
         showAlert('alertBox', e.message || 'Unable to update booking.', 'error');
+      }
+    }
+
+    async function emailFarmerBooking(id) {
+      const booking = ownerBookings.find((entry) => String(entry._id) === String(id));
+      if (!booking || !String(booking.renter_email || '').trim()) {
+        showAlert('alertBox', 'Farmer email is not available for this booking.', 'error');
+        return;
+      }
+
+      try {
+        await apiCall('POST', `/rentals/${id}/email-confirmation`, {}, true);
+        showAlert('alertBox', 'Booking confirmation email sent to farmer.', 'success');
+      } catch (e) {
+        showAlert('alertBox', e.message || 'Unable to send booking email to farmer.', 'error');
       }
     }
 

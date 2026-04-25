@@ -8,6 +8,8 @@ Fields:
   - category         : str (denormalized)
   - renter_id        : ObjectId (ref: users)
   - renter_name      : str (denormalized)
+  - renter_email     : str (denormalized)
+  - renter_phone     : str (denormalized)
   - owner_id         : ObjectId (ref: users)
   - start_date       : str (YYYY-MM-DD)
   - end_date         : str (YYYY-MM-DD)
@@ -25,6 +27,8 @@ RENTAL_SCHEMA = {
     'category': str,
     'renter_id': 'ObjectId',
     'renter_name': str,
+    'renter_email': str,
+    'renter_phone': str,
     'owner_id': 'ObjectId',
     'start_date': str,
     'end_date': str,

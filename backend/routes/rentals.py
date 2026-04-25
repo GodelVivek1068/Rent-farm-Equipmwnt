@@ -4,6 +4,8 @@ import datetime
 import hashlib
 import hmac
 import os
+import smtplib
+from email.message import EmailMessage
 import razorpay
 from config.db import mongo
 from utils.auth_middleware import get_current_user, require_auth
@@ -100,6 +102,8 @@ def rental_to_dict(r):
         'category': r.get('category', 'tractor'),
         'renter_id': str(r.get('renter_id', '')),
         'renter_name': r.get('renter_name', ''),
+        'renter_email': r.get('renter_email', ''),
+        'renter_phone': r.get('renter_phone', ''),
         'owner_id': str(r.get('owner_id', '')),
         'owner_name': r.get('owner_name', ''),
         'owner_phone': r.get('owner_phone', ''),
@@ -204,6 +208,8 @@ def _create_rental_doc(user, eq, booking, payment):
         'category': eq.get('category', 'tractor'),
         'renter_id': user['_id'],
         'renter_name': user.get('name', ''),
+        'renter_email': user.get('email', ''),
+        'renter_phone': user.get('phone', ''),
         'owner_id': owner_id,
         'owner_id_str': str(owner_id) if owner_id is not None else '',
         'owner_name': owner_name,
@@ -283,6 +289,56 @@ def _rental_belongs_to_owner(rental, user_id, owner_equipment_id_strs, owner_nam
         return True
 
     return False
+
+
+def _smtp_settings():
+    host = os.getenv('SMTP_HOST', '').strip()
+    port_raw = os.getenv('SMTP_PORT', '587').strip()
+    username = os.getenv('SMTP_USER', '').strip()
+    password = os.getenv('SMTP_PASSWORD', '').strip()
+    from_email = os.getenv('SMTP_FROM_EMAIL', '').strip() or username
+    use_tls = os.getenv('SMTP_USE_TLS', '1').strip().lower() not in {'0', 'false', 'no'}
+
+    if not host or not port_raw or not username or not password or not from_email:
+        return None
+
+    try:
+        port = int(port_raw)
+    except ValueError:
+        return None
+
+    return {
+        'host': host,
+        'port': port,
+        'username': username,
+        'password': password,
+        'from_email': from_email,
+        'use_tls': use_tls
+    }
+
+
+def _send_booking_confirmation_email(to_email, subject, text_body):
+    smtp = _smtp_settings()
+    if not smtp:
+        return False, 'SMTP is not configured on server'
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = smtp['from_email']
+    msg['To'] = to_email
+    msg.set_content(text_body)
+
+    try:
+        with smtplib.SMTP(smtp['host'], smtp['port']) as server:
+            server.ehlo()
+            if smtp['use_tls']:
+                server.starttls()
+                server.ehlo()
+            server.login(smtp['username'], smtp['password'])
+            server.send_message(msg)
+        return True, None
+    except Exception as ex:
+        return False, str(ex)
 
 
 @rentals_bp.route('/', methods=['POST'])
@@ -455,6 +511,37 @@ def owner_rentals():
             rental['owner_name'] = user.get('name', '')
             rental['owner_phone'] = user.get('phone', '')
 
+        # Backfill renter contact info for legacy bookings.
+        renter_email = str(rental.get('renter_email', '')).strip()
+        renter_phone = str(rental.get('renter_phone', '')).strip()
+        if not renter_email or not renter_phone:
+            renter_id = rental.get('renter_id')
+            renter_user = None
+            if isinstance(renter_id, ObjectId):
+                renter_user = mongo.db.users.find_one({'_id': renter_id}, {'email': 1, 'phone': 1})
+            else:
+                renter_id_str = str(renter_id or '').strip()
+                if renter_id_str:
+                    try:
+                        renter_user = mongo.db.users.find_one({'_id': ObjectId(renter_id_str)}, {'email': 1, 'phone': 1})
+                    except Exception:
+                        renter_user = None
+
+            if renter_user:
+                renter_email = str(renter_user.get('email', '')).strip()
+                renter_phone = str(renter_user.get('phone', '')).strip()
+                mongo.db.rentals.update_one(
+                    {'_id': rental['_id']},
+                    {
+                        '$set': {
+                            'renter_email': renter_email,
+                            'renter_phone': renter_phone
+                        }
+                    }
+                )
+                rental['renter_email'] = renter_email
+                rental['renter_phone'] = renter_phone
+
         rentals.append(rental)
 
     return jsonify({'rentals': [rental_to_dict(r) for r in rentals]})
@@ -532,6 +619,101 @@ def update_rental_status(rental_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+
+@rentals_bp.route('/<rental_id>/email-confirmation', methods=['POST'])
+@require_auth
+def email_confirmation_to_farmer(rental_id):
+    user = get_current_user()
+    data = request.get_json() or {}
+    custom_message = str(data.get('message', '')).strip()
+
+    try:
+        rental = mongo.db.rentals.find_one({'_id': ObjectId(rental_id)})
+    except Exception:
+        return jsonify({'error': 'Invalid rental ID'}), 400
+
+    if not rental:
+        return jsonify({'error': 'Rental not found'}), 404
+
+    owner_equipment_id_strs = {str(value) for value in _owner_equipment_ids(user['_id'])}
+    is_owner = _rental_belongs_to_owner(
+        rental,
+        user['_id'],
+        owner_equipment_id_strs,
+        user.get('name', ''),
+        user.get('phone', '')
+    )
+    if not is_owner:
+        return jsonify({'error': 'Only owner can email booking confirmation'}), 403
+
+    renter_email = str(rental.get('renter_email', '')).strip()
+    if not renter_email:
+        renter_id = rental.get('renter_id')
+        renter_user = None
+        if isinstance(renter_id, ObjectId):
+            renter_user = mongo.db.users.find_one({'_id': renter_id}, {'email': 1})
+        else:
+            renter_id_str = str(renter_id or '').strip()
+            if renter_id_str:
+                try:
+                    renter_user = mongo.db.users.find_one({'_id': ObjectId(renter_id_str)}, {'email': 1})
+                except Exception:
+                    renter_user = None
+
+        if renter_user:
+            renter_email = str(renter_user.get('email', '')).strip()
+            if renter_email:
+                mongo.db.rentals.update_one(
+                    {'_id': rental['_id']},
+                    {'$set': {'renter_email': renter_email}}
+                )
+
+    if not renter_email:
+        return jsonify({'error': 'Farmer email is not available for this booking'}), 400
+
+    farmer_name = str(rental.get('renter_name', '')).strip() or 'Farmer'
+    owner_name = str(rental.get('owner_name', '')).strip() or str(user.get('name', '')).strip() or 'Owner'
+    owner_phone = str(rental.get('owner_phone', '')).strip() or str(user.get('phone', '')).strip()
+    equipment_name = str(rental.get('equipment_name', '')).strip() or 'Equipment'
+    start_date = str(rental.get('start_date', '')).strip()
+    end_date = str(rental.get('end_date', '')).strip()
+    delivery_address = str(rental.get('delivery_address', '')).strip()
+    total_amount = int(rental.get('total_amount', 0) or 0)
+    status = str(rental.get('status', 'pending')).strip().lower()
+
+    status_text = {
+        'confirmed': 'confirmed',
+        'pending': 'received and pending confirmation',
+        'cancelled': 'cancelled',
+        'completed': 'completed'
+    }.get(status, status or 'updated')
+
+    subject = f'Booking update for {equipment_name}'
+    confirmation_line = custom_message or (
+        f'Your booking request has been {status_text} by the equipment owner.'
+    )
+
+    text_body = (
+        f'Hello {farmer_name},\n\n'
+        f'{confirmation_line}\n\n'
+        f'Booking details:\n'
+        f'- Equipment: {equipment_name}\n'
+        f'- Rental dates: {start_date} to {end_date}\n'
+        f'- Delivery address: {delivery_address}\n'
+        f'- Total amount: Rs. {total_amount}\n'
+        f'- Booking status: {status_text}\n\n'
+        f'Owner details:\n'
+        f'- Name: {owner_name}\n'
+        f'- Phone: {owner_phone or "Not provided"}\n\n'
+        f'Thank you for using KrishiYantra.'
+    )
+
+    sent, error = _send_booking_confirmation_email(renter_email, subject, text_body)
+    if not sent:
+        return jsonify({'error': f'Unable to send email: {error}'}), 500
+
+    return jsonify({'message': f'Confirmation email sent to {renter_email}'})
 
 
 @rentals_bp.route('/<rental_id>/rating', methods=['PUT'])
