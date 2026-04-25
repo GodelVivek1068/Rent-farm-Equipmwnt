@@ -132,6 +132,14 @@
       return '&#39;';
     });
 
+    function formatShortDate(rawDate) {
+      const value = String(rawDate || '').trim();
+      if (!value) return '';
+      const parsed = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(parsed.getTime())) return value;
+      return parsed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
     function startDetailRefresh() {
       if (detailRefreshTimer) clearInterval(detailRefreshTimer);
       detailRefreshTimer = setInterval(() => {
@@ -242,6 +250,13 @@
       const ratingLine = ratingCount > 0
         ? `<div class="detail-rating"><i class="fa-solid fa-star star"></i> ${ratingAvg.toFixed(1)} average rating from ${ratingCount} farmer review${ratingCount === 1 ? '' : 's'}</div>`
         : '<div class="detail-rating"><i class="fa-regular fa-star"></i> No farmer ratings yet</div>';
+      const bookedDays = Number(eq.unavailable_booked_days || 0);
+      const availableOn = eq.unavailable_until_label || formatShortDate(eq.unavailable_until_date);
+      const unavailabilityMessage = bookedDays > 0 && availableOn
+        ? `This equipment is already booked for ${bookedDays} day${bookedDays === 1 ? '' : 's'} and is expected to be available on ${availableOn}. We are showing nearby alternatives from other owners below.`
+        : (availableOn
+          ? `This equipment is already booked and is expected to be available on ${availableOn}. We are showing nearby alternatives from other owners below.`
+          : 'This equipment is already booked and currently unavailable. We are showing nearby alternatives from other owners below.');
       const imageHtml = eq.image_url
         ? `<img src="${safeText(eq.image_url)}" alt="${safeText(eq.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='${icon}'"/>`
         : icon;
@@ -272,7 +287,7 @@
         </div>
         <div class="booking-form">
           <h3><i class="fa-solid fa-calendar-check"></i> Book This Equipment</h3>
-          ${canViewAvailabilityStatus && !isAvailable ? '<div class="alert alert-warning">This equipment is already booked and currently unavailable. We are showing nearby alternatives from other owners below.</div>' : ''}
+          ${canViewAvailabilityStatus && !isAvailable ? `<div class="alert alert-warning">${unavailabilityMessage}</div>` : ''}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div class="form-group">
               <label>Start Date</label>

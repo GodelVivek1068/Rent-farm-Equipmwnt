@@ -161,9 +161,59 @@ def _equipment_has_active_booking(eq_id):
         'status': {'$in': list(ACTIVE_RENTAL_STATUSES)}
     }) is not None
 
+
+def _parse_date_value(raw_value):
+    text = str(raw_value or '').strip()
+    if not text:
+        return None
+    try:
+        return datetime.datetime.strptime(text, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _build_active_booking_window(eq_id):
+    eq_variants = _equipment_id_variants(eq_id)
+    if not eq_variants:
+        return None
+
+    active = mongo.db.rentals.find_one(
+        {
+            'equipment_id': {'$in': eq_variants},
+            'status': {'$in': list(ACTIVE_RENTAL_STATUSES)}
+        },
+        sort=[('end_date', 1), ('start_date', 1), ('created_at', 1)]
+    )
+    if not active:
+        return None
+
+    start_text = str(active.get('start_date', '') or '').strip()
+    end_text = str(active.get('end_date', '') or '').strip()
+    start_date = _parse_date_value(start_text)
+    end_date = _parse_date_value(end_text)
+
+    booked_days = 0
+    if start_date and end_date and end_date >= start_date:
+        booked_days = (end_date - start_date).days + 1
+
+    days_until_available = 0
+    available_on_label = ''
+    if end_date:
+        today = datetime.datetime.utcnow().date()
+        days_until_available = max((end_date - today).days, 0)
+        available_on_label = end_date.strftime('%d %b %Y')
+
+    return {
+        'booked_days': booked_days,
+        'available_on': end_text,
+        'available_on_label': available_on_label,
+        'days_until_available': days_until_available
+    }
+
 def eq_to_dict(eq):
     expired_count = _expire_overdue_rentals_for_equipment(eq['_id'])
-    has_active_booking = _equipment_has_active_booking(eq['_id'])
+    active_booking_window = _build_active_booking_window(eq['_id'])
+    has_active_booking = active_booking_window is not None
 
     # If we just cleared overdue active rentals, unblock stale availability flag.
     if expired_count > 0 and not has_active_booking and eq.get('available', True) is False:
@@ -198,6 +248,10 @@ def eq_to_dict(eq):
         'owner_id': str(eq.get('owner_id', '')),
         'owner_kyc_status': eq.get('owner_kyc_status', ''),
         'available': bool(eq.get('available', True)) and not has_active_booking,
+        'unavailable_booked_days': (active_booking_window or {}).get('booked_days', 0),
+        'unavailable_until_date': (active_booking_window or {}).get('available_on', ''),
+        'unavailable_until_label': (active_booking_window or {}).get('available_on_label', ''),
+        'days_until_available': (active_booking_window or {}).get('days_until_available', 0),
         'created_at': str(eq.get('created_at', ''))
     }
 

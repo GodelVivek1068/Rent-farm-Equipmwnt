@@ -209,6 +209,14 @@ function showAlert(containerId, message, type = 'info') {
   setTimeout(() => { el.innerHTML = ''; }, 4000);
 }
 
+function formatShortDate(rawDate) {
+  const value = String(rawDate || '').trim();
+  if (!value) return '';
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 // ===== EQUIPMENT CARD RENDERER =====
 function renderEquipmentCard(eq) {
   const icons = {
@@ -229,6 +237,11 @@ function renderEquipmentCard(eq) {
   const ratingHtml = ratingCount > 0
     ? `<span><i class="fa-solid fa-star" style="color:#f59e0b"></i> ${ratingAvg.toFixed(1)} (${ratingCount})</span>`
     : '<span><i class="fa-regular fa-star" style="color:#9ca3af"></i> No ratings</span>';
+  const bookedDays = Number(eq.unavailable_booked_days || 0);
+  const availableOn = eq.unavailable_until_label || formatShortDate(eq.unavailable_until_date);
+  const unavailableNote = bookedDays > 0 && availableOn
+    ? `Booked for ${bookedDays} day${bookedDays === 1 ? '' : 's'}. Available on ${availableOn}.`
+    : (availableOn ? `Booked now. Available on ${availableOn}.` : 'Already booked. You can view details for alternatives.');
   const availabilityHtml = isAvailable
     ? '<span class="badge badge-green">Available</span>'
     : '<span class="badge badge-red">Unavailable</span>';
@@ -247,7 +260,7 @@ function renderEquipmentCard(eq) {
           ${ratingHtml}
           ${canViewAvailabilityStatus ? availabilityHtml : ''}
         </div>
-        ${canViewAvailabilityStatus && !isAvailable ? '<div class="card-unavailable-note">Already booked. You can view details for alternatives.</div>' : ''}
+        ${canViewAvailabilityStatus && !isAvailable ? `<div class="card-unavailable-note">${unavailableNote}</div>` : ''}
         <div class="card-price">₹${eq.price_per_day}<span>/day</span></div>
         <button class="btn-green" style="width:100%" onclick="event.stopPropagation();window.location.href='/pages/equipment-detail.html?id=${eq._id}'">
           <i class="fa-solid fa-calendar-check"></i> ${ctaLabel}
