@@ -287,6 +287,20 @@
       if (m === '"') return '&quot;';
       return '&#39;';
     });
+    const CATEGORY_ICONS = {
+      tractor: '🚜',
+      harvester: '🌾',
+      rotavator: '⚙️',
+      sprayer: '💧',
+      thresher: '🌿',
+      plough: '🔧',
+      seeder: '🌱',
+      pump: '🪣'
+    };
+    const getCategoryIcon = (category) => {
+      const key = String(category || '').trim().toLowerCase();
+      return CATEGORY_ICONS[key] || '🚜';
+    };
     let ownerEquipment = [];
     let ownerBookings = [];
     let bookingRefreshTimer = null;
@@ -445,9 +459,10 @@
       wrap.innerHTML = ownerEquipment.map((eq) => {
         const statusBadge = eq.available !== false ? 'badge-green' : 'badge-red';
         const statusLabel = eq.available !== false ? 'Available' : 'Unavailable';
+        const icon = getCategoryIcon(eq.category);
         const image = eq.image_url
-          ? `<img class="thumb" src="${safeText(eq.image_url)}" alt="${safeText(eq.name)}"/>`
-          : '<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.7rem;">🚜</div>';
+          ? `<img class="thumb" src="${safeText(eq.image_url)}" alt="${safeText(eq.name)}" onerror="this.outerHTML='<div class=\'thumb\' style=\'display:flex;align-items:center;justify-content:center;font-size:1.7rem;\'>${icon}</div>'"/>`
+          : `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.7rem;">${icon}</div>`;
 
         return `
           <div class="item-card">

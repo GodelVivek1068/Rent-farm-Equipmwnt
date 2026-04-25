@@ -19,6 +19,8 @@
     .detail-name { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 900; color: var(--green-dark); margin-bottom: 10px; }
     .detail-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; font-size: 0.88rem; color: var(--gray-600); }
     .detail-meta span { display: flex; align-items: center; gap: 5px; }
+    .detail-rating { margin-bottom: 14px; font-size: 0.9rem; color: var(--gray-600); display: flex; align-items: center; gap: 8px; }
+    .detail-rating .star { color: #f59e0b; }
     .detail-price { font-size: 2rem; font-weight: 900; color: var(--green-mid); margin-bottom: 20px; }
     .detail-price small { font-size: 0.9rem; color: var(--gray-400); font-weight: 400; }
     .detail-desc { color: var(--gray-600); line-height: 1.7; margin-bottom: 24px; font-size: 0.93rem; }
@@ -235,6 +237,11 @@
       const role = user && user.role ? String(user.role).toLowerCase() : '';
       const canViewAvailabilityStatus = isLoggedIn() && (role === 'farmer' || role === 'renter');
       const icon = ICONS[eq.category] || '🚜';
+      const ratingAvg = Number(eq.rating_avg || 0);
+      const ratingCount = Number(eq.rating_count || 0);
+      const ratingLine = ratingCount > 0
+        ? `<div class="detail-rating"><i class="fa-solid fa-star star"></i> ${ratingAvg.toFixed(1)} average rating from ${ratingCount} farmer review${ratingCount === 1 ? '' : 's'}</div>`
+        : '<div class="detail-rating"><i class="fa-regular fa-star"></i> No farmer ratings yet</div>';
       const imageHtml = eq.image_url
         ? `<img src="${safeText(eq.image_url)}" alt="${safeText(eq.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent='${icon}'"/>`
         : icon;
@@ -251,6 +258,7 @@
               <span><i class="fa-solid fa-location-dot"></i> ${eq.location}</span>
               ${canViewAvailabilityStatus ? `<span><i class="fa-solid fa-circle" style="color:${isAvailable?'#22c55e':'#ef4444'};font-size:0.6rem"></i> ${isAvailable?'Available':'Unavailable'}</span>` : ''}
             </div>
+            ${ratingLine}
             <div class="detail-price">₹${eq.price_per_day}<small>/day</small></div>
             <p class="detail-desc">${eq.description || 'Quality farm equipment available for rent.'}</p>
             <div class="owner-card">
@@ -336,6 +344,7 @@
                 <div class="alt-card">
                   <div class="alt-name">${safeText(item.name)}</div>
                   <div class="alt-meta"><i class="fa-solid fa-location-dot"></i> ${safeText(item.location)} | Owner: ${safeText(item.owner_name || 'Equipment Owner')}</div>
+                  <div class="alt-meta"><i class="fa-solid fa-star" style="color:#f59e0b"></i> ${Number(item.rating_count || 0) > 0 ? `${Number(item.rating_avg || 0).toFixed(1)} (${Number(item.rating_count || 0)})` : 'No ratings yet'}</div>
                   <div class="alt-price">₹${item.price_per_day}/day</div>
                   <a class="btn-outline" style="display:inline-flex" href="equipment-detail.html?id=${item._id}">
                     <i class="fa-solid fa-arrow-right"></i> View This Equipment

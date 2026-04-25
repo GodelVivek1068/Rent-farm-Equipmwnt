@@ -112,6 +112,9 @@ def rental_to_dict(r):
         'payment_id': r.get('payment_id', ''),
         'payment_order_id': r.get('payment_order_id', ''),
         'status': r.get('status', 'pending'),
+        'farmer_rating': int(r.get('farmer_rating', 0) or 0),
+        'farmer_review': r.get('farmer_review', ''),
+        'rated_at': str(r.get('rated_at', '')),
         'commission': {
             'commission_percent': commission.get('commission_percent', 0),
             'commission_amount': commission.get('commission_amount', 0),
@@ -119,6 +122,40 @@ def rental_to_dict(r):
         },
         'created_at': str(r.get('created_at', ''))
     }
+
+
+def _recalculate_equipment_rating(equipment_id):
+    eq_variants = _equipment_id_variants(equipment_id)
+    if not eq_variants:
+        return
+
+    ratings = []
+    for rental in mongo.db.rentals.find({
+        'equipment_id': {'$in': eq_variants},
+        'status': 'completed',
+        'farmer_rating': {'$gte': 1, '$lte': 5}
+    }, {'farmer_rating': 1}):
+        try:
+            ratings.append(int(rental.get('farmer_rating', 0)))
+        except (TypeError, ValueError):
+            continue
+
+    rating_count = len(ratings)
+    rating_avg = round(sum(ratings) / rating_count, 2) if rating_count else 0
+
+    equipment_object_id = None
+    for value in eq_variants:
+        if isinstance(value, ObjectId):
+            equipment_object_id = value
+            break
+
+    if equipment_object_id is None:
+        return
+
+    mongo.db.equipment.update_one(
+        {'_id': equipment_object_id},
+        {'$set': {'rating_avg': rating_avg, 'rating_count': rating_count}}
+    )
 
 
 def _validate_booking_payload(data):
@@ -495,3 +532,48 @@ def update_rental_status(rental_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+
+@rentals_bp.route('/<rental_id>/rating', methods=['PUT'])
+@require_auth
+def rate_rental(rental_id):
+    user = get_current_user()
+    data = request.get_json() or {}
+
+    try:
+        rental = mongo.db.rentals.find_one({'_id': ObjectId(rental_id)})
+    except Exception:
+        return jsonify({'error': 'Invalid rental ID'}), 400
+
+    if not rental:
+        return jsonify({'error': 'Rental not found'}), 404
+
+    if str(rental.get('renter_id', '')) != str(user.get('_id', '')):
+        return jsonify({'error': 'Only renter can rate this equipment'}), 403
+
+    if str(rental.get('status', '')).lower() != 'completed':
+        return jsonify({'error': 'You can rate equipment only after rental is completed'}), 400
+
+    try:
+        rating = int(data.get('rating', 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Rating must be a number between 1 and 5'}), 400
+
+    if rating < 1 or rating > 5:
+        return jsonify({'error': 'Rating must be between 1 and 5'}), 400
+
+    review = str(data.get('review', '')).strip()
+    if len(review) > 500:
+        return jsonify({'error': 'Review cannot exceed 500 characters'}), 400
+
+    update_doc = {
+        'farmer_rating': rating,
+        'farmer_review': review,
+        'rated_at': datetime.datetime.utcnow()
+    }
+    mongo.db.rentals.update_one({'_id': rental['_id']}, {'$set': update_doc})
+
+    _recalculate_equipment_rating(rental.get('equipment_id'))
+
+    updated = mongo.db.rentals.find_one({'_id': rental['_id']})
+    return jsonify({'rental': rental_to_dict(updated)})

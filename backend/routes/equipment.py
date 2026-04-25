@@ -182,6 +182,8 @@ def eq_to_dict(eq):
         'name': eq.get('name'),
         'category': eq.get('category'),
         'image_url': eq.get('image_url', ''),
+        'rating_avg': float(eq.get('rating_avg', 0) or 0),
+        'rating_count': int(eq.get('rating_count', 0) or 0),
         'price_per_day': eq.get('price_per_day'),
         'location': eq.get('location'),
         'description': eq.get('description', ''),
@@ -512,6 +514,8 @@ def create_equipment():
         'owner_name': user.get('name', ''),
         'owner_id': user['_id'],
         'owner_kyc_status': owner_kyc_status,
+        'rating_avg': 0,
+        'rating_count': 0,
         'available': True,
         'created_at': datetime.datetime.utcnow()
     }

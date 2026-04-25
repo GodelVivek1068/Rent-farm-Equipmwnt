@@ -31,6 +31,9 @@
     .rental-meta { font-size: 0.82rem; color: var(--gray-600); display: flex; flex-wrap: wrap; gap: 12px; }
     .rental-meta span { display: flex; align-items: center; gap: 5px; }
     .rental-amount { font-weight: 700; color: var(--green-mid); font-size: 1.1rem; white-space: nowrap; }
+    .rating-wrap { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .rating-stars { color: #f59e0b; font-size: 0.9rem; font-weight: 700; }
+    .rating-note { font-size: 0.78rem; color: var(--gray-600); }
     .no-rentals { text-align: center; padding: 60px; color: var(--gray-400); }
     .no-rentals i { font-size: 3rem; display: block; margin-bottom: 16px; }
     .login-prompt { text-align: center; padding: 60px; }
@@ -69,6 +72,11 @@
   <script src="../js/main.js"></script>
   <script>
     const ICONS = { tractor:'🚜', harvester:'🌾', rotavator:'⚙️', sprayer:'💧', thresher:'🌿', plough:'🔧', seeder:'🌱', pump:'🪣' };
+
+    function toStars(value) {
+      const count = Math.max(0, Math.min(5, Number(value || 0)));
+      return '★'.repeat(count) + '☆'.repeat(5 - count);
+    }
 
     async function init() {
       const page = document.getElementById('pageContent');
@@ -153,6 +161,17 @@
       content.innerHTML = rentals.map(r => {
         const statusBadge = r.status === 'confirmed' ? 'badge-green' : r.status === 'pending' ? 'badge-amber' : 'badge-red';
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.delivery_address || '')}`;
+        const ratingValue = Number(r.farmer_rating || 0);
+        const isCompleted = String(r.status || '').toLowerCase() === 'completed';
+        const ratingHtml = isCompleted
+          ? `<div class="rating-wrap">
+              <span class="rating-stars">${ratingValue > 0 ? toStars(ratingValue) : 'Not rated yet'}</span>
+              <button class="btn-outline" style="padding:6px 12px;font-size:0.76rem;" onclick="rateEquipment('${r._id}', ${ratingValue})">
+                <i class="fa-solid fa-star"></i> ${ratingValue > 0 ? 'Update Rating' : 'Rate Equipment'}
+              </button>
+              ${ratingValue > 0 ? `<span class="rating-note">Your rating: ${ratingValue}/5</span>` : ''}
+            </div>`
+          : '';
         return `
           <div class="rental-card">
             <div class="rental-icon">${ICONS[r.category]||'🚜'}</div>
@@ -163,6 +182,7 @@
                 <span><i class="fa-solid fa-location-dot"></i> ${r.delivery_address}</span>
                 <span class="badge ${statusBadge}">${r.status}</span>
               </div>
+              ${ratingHtml}
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
               <div class="rental-amount">₹${r.total_amount}</div>
@@ -176,6 +196,33 @@
           </div>
         `;
       }).join('');
+    }
+
+    async function rateEquipment(rentalId, currentRating) {
+      const raw = window.prompt('Rate this equipment from 1 to 5', String(currentRating || '5'));
+      if (raw === null) return;
+
+      const rating = Number(raw);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        alert('Please enter an integer rating between 1 and 5.');
+        return;
+      }
+
+      const reviewInput = window.prompt('Optional review (max 500 characters):', '');
+      if (reviewInput === null) return;
+      const review = String(reviewInput || '').trim();
+      if (review.length > 500) {
+        alert('Review is too long. Maximum 500 characters allowed.');
+        return;
+      }
+
+      try {
+        await apiCall('PUT', `/rentals/${rentalId}/rating`, { rating, review }, true);
+        alert('Rating submitted successfully.');
+        loadRentals(currentTab);
+      } catch (e) {
+        alert(e.message || 'Unable to submit rating right now.');
+      }
     }
 
     async function raiseDispute(rentalId) {

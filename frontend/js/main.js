@@ -224,6 +224,11 @@ function renderEquipmentCard(eq) {
     ? `<span><i class="fa-solid fa-route"></i> ${eq.distance_km.toFixed(1)} km</span>`
     : '';
   const canViewAvailabilityStatus = isFarmerLoggedIn();
+  const ratingAvg = Number(eq.rating_avg || 0);
+  const ratingCount = Number(eq.rating_count || 0);
+  const ratingHtml = ratingCount > 0
+    ? `<span><i class="fa-solid fa-star" style="color:#f59e0b"></i> ${ratingAvg.toFixed(1)} (${ratingCount})</span>`
+    : '<span><i class="fa-regular fa-star" style="color:#9ca3af"></i> No ratings</span>';
   const availabilityHtml = isAvailable
     ? '<span class="badge badge-green">Available</span>'
     : '<span class="badge badge-red">Unavailable</span>';
@@ -239,6 +244,7 @@ function renderEquipmentCard(eq) {
           <span><i class="fa-solid fa-location-dot"></i> ${eq.location}</span>
           ${distanceHtml}
           <span class="badge badge-green">${eq.category}</span>
+          ${ratingHtml}
           ${canViewAvailabilityStatus ? availabilityHtml : ''}
         </div>
         ${canViewAvailabilityStatus && !isAvailable ? '<div class="card-unavailable-note">Already booked. You can view details for alternatives.</div>' : ''}
