@@ -4,6 +4,7 @@ import jwt
 import datetime
 import os
 from config.db import mongo
+from utils.auth_middleware import get_current_user, require_auth
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -160,9 +161,59 @@ def login_admin():
 
 
 @auth_bp.route('/me', methods=['GET'])
+@require_auth
 def me():
-    from utils.auth_middleware import get_current_user
+    user = get_current_user()
+    return jsonify({'user': _serialize_user(user)})
+
+
+@auth_bp.route('/me', methods=['PUT'])
+@require_auth
+def update_me():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
-    return jsonify({'user': _serialize_user(user)})
+
+    data = request.get_json() or {}
+
+    updatable_fields = {'name', 'phone', 'location', 'email'}
+    update_doc = {}
+    for field in updatable_fields:
+        if field not in data:
+            continue
+        value = str(data.get(field, '')).strip()
+        if field == 'email':
+            value = value.lower()
+        update_doc[field] = value
+
+    if not update_doc:
+        return jsonify({'error': 'No profile fields provided for update'}), 400
+
+    if 'name' in update_doc and not update_doc['name']:
+        return jsonify({'error': 'Name is required'}), 400
+
+    if 'phone' in update_doc and not update_doc['phone']:
+        return jsonify({'error': 'Phone is required'}), 400
+
+    if 'email' in update_doc:
+        if not update_doc['email']:
+            return jsonify({'error': 'Email is required'}), 400
+
+        existing = mongo.db.users.find_one({
+            'email': update_doc['email'],
+            '_id': {'$ne': user['_id']}
+        })
+        if existing:
+            return jsonify({'error': 'Email already registered'}), 409
+
+    update_doc['updated_at'] = datetime.datetime.utcnow()
+    mongo.db.users.update_one(
+        {'_id': user['_id']},
+        {'$set': update_doc}
+    )
+
+    updated_user = mongo.db.users.find_one({'_id': user['_id']})
+    return jsonify({
+        'message': 'Profile updated successfully',
+        'user': _serialize_user(updated_user)
+    })

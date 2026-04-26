@@ -50,7 +50,7 @@
       </div>
       <div class="info-item">
         <div class="info-icon"><i class="fa-solid fa-envelope"></i></div>
-        <div><h4>Email</h4><p>support@krishiyantra.in<br/>We reply within 24 hours</p></div>
+        <div><h4>Email</h4><p>vj572483@gmail.com<br/>We reply within 24 hours</p></div>
       </div>
       <div class="info-item">
         <div class="info-icon"><i class="fa-brands fa-whatsapp"></i></div>
@@ -97,9 +97,11 @@
         await apiCall('POST', '/contact', {
           name, contact, topic: document.getElementById('cTopic').value, message
         });
-      } catch(e) {}
-      showAlert('alertBox', '✅ Message sent! We\'ll get back to you soon.', 'success');
-      ['cName','cContact','cMessage'].forEach(id => document.getElementById(id).value='');
+        showAlert('alertBox', '✅ Message sent! We\'ll get back to you soon.', 'success');
+        ['cName','cContact','cMessage'].forEach(id => document.getElementById(id).value='');
+      } catch(e) {
+        showAlert('alertBox', e.message || 'Failed to send message. Please try again.', 'error');
+      }
     }
   </script>
 </body>
