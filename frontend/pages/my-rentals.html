@@ -34,6 +34,15 @@
     .rating-wrap { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .rating-stars { color: #f59e0b; font-size: 0.9rem; font-weight: 700; }
     .rating-note { font-size: 0.78rem; color: var(--gray-600); }
+    .rental-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .btn-cancel-booking {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid #dc2626; background: #fff1f2; color: #b91c1c;
+      border-radius: 999px; padding: 7px 12px; font-size: 0.76rem; font-weight: 700;
+      cursor: pointer; transition: var(--transition);
+    }
+    .btn-cancel-booking:hover { background: #ffe4e6; transform: translateY(-1px); }
+    .btn-cancel-booking:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
     .no-rentals { text-align: center; padding: 60px; color: var(--gray-400); }
     .no-rentals i { font-size: 3rem; display: block; margin-bottom: 16px; }
     .login-prompt { text-align: center; padding: 60px; }
@@ -106,6 +115,7 @@
     let currentTab = 'renting';
     let autoRefreshTimer = null;
     const AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
+    const cancellingRentals = new Set();
 
     function switchTab(tab, btn) {
       currentTab = tab;
@@ -162,7 +172,10 @@
         const statusBadge = r.status === 'confirmed' ? 'badge-green' : r.status === 'pending' ? 'badge-amber' : 'badge-red';
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.delivery_address || '')}`;
         const ratingValue = Number(r.farmer_rating || 0);
-        const isCompleted = String(r.status || '').toLowerCase() === 'completed';
+        const normalizedStatus = String(r.status || '').toLowerCase();
+        const isCompleted = normalizedStatus === 'completed';
+        const canCancel = normalizedStatus === 'pending' || normalizedStatus === 'confirmed';
+        const isCancelling = cancellingRentals.has(String(r._id));
         const ratingHtml = isCompleted
           ? `<div class="rating-wrap">
               <span class="rating-stars">${ratingValue > 0 ? toStars(ratingValue) : 'Not rated yet'}</span>
@@ -184,7 +197,7 @@
               </div>
               ${ratingHtml}
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
+            <div class="rental-actions">
               <div class="rental-amount">₹${r.total_amount}</div>
               <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="btn-map-bold">
                 <i class="fa-solid fa-map-location-dot"></i> View Map
@@ -192,10 +205,34 @@
               <button class="btn-outline" style="padding:6px 12px;font-size:0.76rem;" onclick="raiseDispute('${r._id}')">
                 <i class="fa-solid fa-scale-balanced"></i> Raise Dispute
               </button>
+              ${canCancel ? `<button class="btn-cancel-booking" onclick="cancelBooking('${r._id}')" ${isCancelling ? 'disabled' : ''}>
+                <i class="fa-solid fa-ban"></i> ${isCancelling ? 'Cancelling...' : 'Cancel Booking'}
+              </button>` : ''}
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    async function cancelBooking(rentalId) {
+      const confirmed = window.confirm('Cancel this booking request? This action cannot be undone.');
+      if (!confirmed) return;
+
+      const id = String(rentalId);
+      if (cancellingRentals.has(id)) return;
+
+      cancellingRentals.add(id);
+      loadRentals(currentTab);
+
+      try {
+        await apiCall('PUT', `/rentals/${id}/status`, { status: 'cancelled' }, true);
+        alert('Booking cancelled successfully.');
+      } catch (e) {
+        alert(e.message || 'Unable to cancel booking right now.');
+      } finally {
+        cancellingRentals.delete(id);
+        loadRentals(currentTab);
+      }
     }
 
     async function rateEquipment(rentalId, currentRating) {
